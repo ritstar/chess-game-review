@@ -48,7 +48,7 @@ A pixel-perfect replica of **Chess.com's Game Review** feature, running entirely
 
 ```bash
 git clone <repo-url>
-cd Chess_Com_Game_Analysis
+cd chess-game-review
 npm install
 ```
 
