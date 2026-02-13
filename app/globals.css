@@ -53,39 +53,100 @@
 }
 
 /* ── Classification colors ── */
-.cc-brilliant { color: #1baca6; }
-.cc-great { color: #5c93bb; }
-.cc-best { color: #96bc4b; }
-.cc-excellent { color: #96bc4b; }
-.cc-good { color: #96af8b; }
-.cc-inaccuracy { color: #f7c631; }
-.cc-mistake { color: #e58f2a; }
-.cc-blunder { color: #ca3431; }
-.cc-book { color: #a88865; }
-.cc-forced { color: #a0a0a0; }
+.cc-brilliant {
+  color: #1baca6;
+}
 
-.bg-brilliant { background-color: #1baca6; }
-.bg-great { background-color: #5c93bb; }
-.bg-best { background-color: #96bc4b; }
-.bg-excellent { background-color: #96bc4b; }
-.bg-good { background-color: #96af8b; }
-.bg-inaccuracy { background-color: #f7c631; }
-.bg-mistake { background-color: #e58f2a; }
-.bg-blunder { background-color: #ca3431; }
-.bg-book { background-color: #a88865; }
-.bg-forced { background-color: #a0a0a0; }
+.cc-great {
+  color: #5c93bb;
+}
+
+.cc-best {
+  color: #96bc4b;
+}
+
+.cc-excellent {
+  color: #96bc4b;
+}
+
+.cc-good {
+  color: #96af8b;
+}
+
+.cc-inaccuracy {
+  color: #f7c631;
+}
+
+.cc-mistake {
+  color: #e58f2a;
+}
+
+.cc-blunder {
+  color: #ca3431;
+}
+
+.cc-book {
+  color: #a88865;
+}
+
+.cc-forced {
+  color: #a0a0a0;
+}
+
+.bg-brilliant {
+  background-color: #1baca6;
+}
+
+.bg-great {
+  background-color: #5c93bb;
+}
+
+.bg-best {
+  background-color: #96bc4b;
+}
+
+.bg-excellent {
+  background-color: #96bc4b;
+}
+
+.bg-good {
+  background-color: #96af8b;
+}
+
+.bg-inaccuracy {
+  background-color: #f7c631;
+}
+
+.bg-mistake {
+  background-color: #e58f2a;
+}
+
+.bg-blunder {
+  background-color: #ca3431;
+}
+
+.bg-book {
+  background-color: #a88865;
+}
+
+.bg-forced {
+  background-color: #a0a0a0;
+}
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar {
   width: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: #21201d;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #555;
   border-radius: 999px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #6a6a6a;
 }
@@ -121,23 +182,52 @@
 }
 
 .move-cell:hover {
-  background-color: rgba(255,255,255,0.06);
+  background-color: rgba(255, 255, 255, 0.06);
 }
 
 .move-cell.active {
-  background-color: rgba(255,255,255,0.12);
+  background-color: rgba(255, 255, 255, 0.12);
 }
 
-.move-cell.active.cl-brilliant { background-color: rgba(27,172,166,0.25); }
-.move-cell.active.cl-great { background-color: rgba(92,147,187,0.25); }
-.move-cell.active.cl-best { background-color: rgba(150,188,75,0.2); }
-.move-cell.active.cl-excellent { background-color: rgba(150,188,75,0.15); }
-.move-cell.active.cl-good { background-color: rgba(150,175,139,0.15); }
-.move-cell.active.cl-inaccuracy { background-color: rgba(247,198,49,0.2); }
-.move-cell.active.cl-mistake { background-color: rgba(229,143,42,0.25); }
-.move-cell.active.cl-blunder { background-color: rgba(202,52,49,0.25); }
-.move-cell.active.cl-book { background-color: rgba(168,136,101,0.2); }
-.move-cell.active.cl-forced { background-color: rgba(160,160,160,0.15); }
+.move-cell.active.cl-brilliant {
+  background-color: rgba(27, 172, 166, 0.25);
+}
+
+.move-cell.active.cl-great {
+  background-color: rgba(92, 147, 187, 0.25);
+}
+
+.move-cell.active.cl-best {
+  background-color: rgba(150, 188, 75, 0.2);
+}
+
+.move-cell.active.cl-excellent {
+  background-color: rgba(150, 188, 75, 0.15);
+}
+
+.move-cell.active.cl-good {
+  background-color: rgba(150, 175, 139, 0.15);
+}
+
+.move-cell.active.cl-inaccuracy {
+  background-color: rgba(247, 198, 49, 0.2);
+}
+
+.move-cell.active.cl-mistake {
+  background-color: rgba(229, 143, 42, 0.25);
+}
+
+.move-cell.active.cl-blunder {
+  background-color: rgba(202, 52, 49, 0.25);
+}
+
+.move-cell.active.cl-book {
+  background-color: rgba(168, 136, 101, 0.2);
+}
+
+.move-cell.active.cl-forced {
+  background-color: rgba(160, 160, 160, 0.15);
+}
 
 /* Classification dot */
 .cl-dot {
@@ -166,6 +256,7 @@
   border-radius: 2px;
   overflow: hidden;
 }
+
 .analysis-progress-fill {
   height: 100%;
   background: #81b64c;
@@ -188,14 +279,17 @@
   transition: background-color 0.15s, color 0.15s;
   border-radius: 3px;
 }
+
 .nav-btn:hover {
   background: #3c3a38;
   color: #fff;
 }
+
 .nav-btn:disabled {
   opacity: 0.3;
   cursor: default;
 }
+
 .nav-btn:disabled:hover {
   background: #272522;
   color: #c8c8c8;
@@ -215,6 +309,7 @@
   gap: 12px;
   flex-wrap: wrap;
 }
+
 .summary-item {
   display: flex;
   align-items: center;
@@ -223,6 +318,7 @@
   font-weight: 600;
   color: #d0d0d0;
 }
+
 .summary-item .count {
   font-size: 14px;
   font-weight: 700;
@@ -239,6 +335,7 @@
   font-size: 14px;
   font-weight: 600;
 }
+
 .player-bar .avatar {
   width: 28px;
   height: 28px;
@@ -250,6 +347,7 @@
   font-size: 14px;
   color: #fff;
 }
+
 .player-bar .rating {
   color: #9e9e9e;
   font-size: 13px;
@@ -268,11 +366,277 @@
   flex-direction: column;
   gap: 4px;
 }
+
 .move-desc .desc-title {
   font-weight: 700;
   font-size: 15px;
 }
+
 .move-desc .desc-detail {
   color: #b0b0b0;
   font-size: 13px;
+}
+
+/* ══════════════════════════════════════════ */
+/* ── Mobile responsive ── */
+/* ══════════════════════════════════════════ */
+
+/* Prevent page-wide horizontal scroll */
+@media (max-width: 900px) {
+
+  body,
+  main {
+    overflow-x: hidden;
+    width: 100%;
+  }
+}
+
+/* -- Top bar: stack on narrow screens -- */
+@media (max-width: 640px) {
+  .top-bar {
+    flex-wrap: wrap;
+    padding: 8px 12px !important;
+    gap: 8px !important;
+  }
+
+  .top-bar .brand {
+    width: 100%;
+  }
+
+  .top-bar .search-group {
+    width: 100%;
+    margin-left: 0 !important;
+  }
+
+  .top-bar .search-group input {
+    flex: 1;
+    min-width: 0;
+    width: auto !important;
+  }
+}
+
+/* -- Main layout: stack sidebar above content -- */
+@media (max-width: 900px) {
+  .main-grid {
+    grid-template-columns: 1fr !important;
+    min-height: auto !important;
+    display: flex !important;
+    flex-direction: column;
+  }
+
+  .game-sidebar {
+    border-right: none !important;
+    border-bottom: 1px solid #464442;
+    width: 100%;
+    padding: 0 !important;
+  }
+
+  /* Vertical scrollable game list on mobile with max height */
+  .game-sidebar .game-list-scroll {
+    max-height: 180px;
+    /* Limit height so board is visible */
+    overflow-y: auto;
+    padding: 8px 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Disable inner scroll of GameList component on mobile to prevent double scrollbars */
+  .game-sidebar .game-list-scroll>div {
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+}
+
+/* -- Board area: stack eval, board, and moves vertically -- */
+@media (max-width: 900px) {
+  .board-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0 !important;
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  /* Eval bar: horizontal below analysis btn instead of tall vertical */
+  .eval-bar-wrapper {
+    padding: 0 !important;
+    order: 0;
+    width: 100%;
+  }
+
+  .eval-bar-wrapper .eval-bar-horizontal {
+    display: flex !important;
+  }
+
+  .eval-bar-wrapper .eval-bar-vertical {
+    display: none !important;
+  }
+
+  /* Board + player bars */
+  .board-column {
+    order: 1;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .board-container {
+    border-radius: 0 !important;
+    /* Full width board looks better without radius */
+  }
+
+  /* Move panel */
+  .move-panel-wrapper {
+    order: 2;
+    min-height: 250px !important;
+    max-height: 400px !important;
+    width: 100%;
+  }
+}
+
+/* -- Horizontal eval bar (shown only on mobile) -- */
+.eval-bar-horizontal {
+  display: none;
+  height: 16px;
+  width: 100%;
+  background: #3c3a38;
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.eval-bar-horizontal .fill {
+  height: 100%;
+  background: #f0f0f0;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.eval-bar-horizontal .label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 4px;
+}
+
+.eval-bar-horizontal .label.white {
+  left: 2px;
+  color: #272522;
+}
+
+.eval-bar-horizontal .label.black {
+  right: 2px;
+  color: #f0f0f0;
+}
+
+/* -- Summary bar: smaller on mobile -- */
+@media (max-width: 640px) {
+  .summary-bar-wrapper {
+    gap: 8px !important;
+    padding: 8px !important;
+  }
+
+  .summary-item {
+    font-size: 11px;
+    gap: 3px;
+  }
+
+  .summary-item .count {
+    font-size: 11px;
+  }
+}
+
+/* -- Navigation buttons: a bit bigger touch targets on mobile -- */
+@media (max-width: 640px) {
+  .nav-btn {
+    flex: 1;
+    /* Stretch buttons to fill width */
+    height: 44px;
+    font-size: 20px;
+  }
+}
+
+/* -- Player bar: compact on mobile -- */
+@media (max-width: 640px) {
+  .player-bar {
+    padding: 4px 8px;
+    font-size: 13px;
+    gap: 8px;
+  }
+
+  .player-bar .avatar {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+}
+
+/* -- Move panel: compact text on mobile -- */
+@media (max-width: 640px) {
+  .move-row {
+    grid-template-columns: 24px 1fr 1fr;
+    /* Reduce number column width */
+  }
+
+  .move-cell {
+    padding: 6px 4px;
+    font-size: 14px;
+  }
+
+  .cl-dot {
+    width: 10px;
+    height: 10px;
+    font-size: 6px;
+  }
+
+  .move-desc {
+    padding: 10px;
+    min-height: auto;
+  }
+
+  .move-desc .desc-title {
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+
+  .move-desc .desc-detail {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+}
+
+/* -- Analysis button: full width on mobile -- */
+@media (max-width: 640px) {
+  .analysis-row {
+    flex-direction: column;
+    gap: 8px !important;
+    width: 100%;
+  }
+
+  .analysis-row button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .analysis-row .progress-wrapper {
+    max-width: 100% !important;
+    width: 100%;
+  }
+}
+
+/* -- Custom cleaner scrollbar for mobile elements -- */
+@media (hover: none) and (pointer: coarse) {
+
+  .game-sidebar .game-list-scroll::-webkit-scrollbar,
+  .move-panel-wrapper::-webkit-scrollbar,
+  .top-bar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .game-sidebar .game-list-scroll::-webkit-scrollbar-thumb,
+  .move-panel-wrapper::-webkit-scrollbar-thumb,
+  .top-bar::-webkit-scrollbar-thumb {
+    background: #464442;
+  }
 }

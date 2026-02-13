@@ -123,6 +123,7 @@ export default function Home() {
     <main style={{ minHeight: '100vh', background: '#312e2b', color: '#f0f0f0' }}>
       {/* Top bar */}
       <div
+        className="top-bar"
         style={{
           background: '#272522',
           borderBottom: '1px solid #464442',
@@ -132,11 +133,11 @@ export default function Home() {
           gap: 16,
         }}
       >
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#81b64c', letterSpacing: '-0.5px' }}>
+        <div className="brand" style={{ fontSize: 18, fontWeight: 700, color: '#81b64c', letterSpacing: '-0.5px' }}>
           ♟ Game Review
         </div>
 
-        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto', alignItems: 'center' }}>
+        <div className="search-group" style={{ display: 'flex', gap: 8, marginLeft: 'auto', alignItems: 'center' }}>
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -180,6 +181,7 @@ export default function Home() {
       )}
 
       <div
+        className="main-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: '280px 1fr',
@@ -191,6 +193,7 @@ export default function Home() {
       >
         {/* ── Left sidebar: Game list ── */}
         <aside
+          className="game-sidebar"
           style={{
             background: '#272522',
             borderRight: '1px solid #464442',
@@ -201,12 +204,14 @@ export default function Home() {
           <div style={{ fontSize: 13, fontWeight: 600, color: '#a0a0a0', marginBottom: 8 }}>
             RECENT GAMES
           </div>
-          <GameList
-            games={games}
-            username={username}
-            onSelectGame={setSelectedGame}
-            selectedGameId={selectedGame?.uuid ?? null}
-          />
+          <div className="game-list-scroll">
+            <GameList
+              games={games}
+              username={username}
+              onSelectGame={setSelectedGame}
+              selectedGameId={selectedGame?.uuid ?? null}
+            />
+          </div>
         </aside>
 
         {/* ── Main content ── */}
@@ -234,7 +239,7 @@ export default function Home() {
           {selectedGame && (
             <>
               {/* Analysis button + progress */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className="analysis-row" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <button
                   onClick={() => analyzeGame(parsedMoves, openingPlyFromPgn(selectedGame.pgn))}
                   disabled={isAnalyzing || parsedMoves.length === 0}
@@ -263,7 +268,7 @@ export default function Home() {
                 </button>
 
                 {isAnalyzing && (
-                  <div style={{ flex: 1, maxWidth: 300 }}>
+                  <div className="progress-wrapper" style={{ flex: 1, maxWidth: 300 }}>
                     <div className="analysis-progress">
                       <div className="analysis-progress-fill" style={{ width: `${progress}%` }} />
                     </div>
@@ -273,6 +278,7 @@ export default function Home() {
 
               {/* Main board area: Eval | Board | Moves */}
               <div
+                className="board-grid"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: '30px minmax(360px, 560px) minmax(260px, 340px)',
@@ -281,12 +287,15 @@ export default function Home() {
                 }}
               >
                 {/* Eval bar */}
-                <div style={{ paddingTop: 32, paddingBottom: 32 }}>
-                  <EvaluationBar evaluation={evalForBar} orientation={orientation} />
+                <div className="eval-bar-wrapper" style={{ paddingTop: 32, paddingBottom: 32 }}>
+                  <div className="eval-bar-vertical">
+                    <EvaluationBar evaluation={evalForBar} orientation={orientation} />
+                  </div>
+                  <HorizontalEvalBar evaluation={evalForBar} />
                 </div>
 
                 {/* Board + player bars */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                <div className="board-column" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                   {/* Top player (opponent) */}
                   <PlayerBar
                     player={orientation === 'white' ? blackPlayer : whitePlayer}
@@ -310,7 +319,7 @@ export default function Home() {
                 </div>
 
                 {/* Move panel */}
-                <div style={{ minHeight: 400, maxHeight: 620, display: 'flex', flexDirection: 'column' }}>
+                <div className="move-panel-wrapper" style={{ minHeight: 400, maxHeight: 620, display: 'flex', flexDirection: 'column' }}>
                   <MovePanel
                     moves={parsedMoves}
                     currentMoveIndex={currentMoveIndex}
@@ -326,6 +335,7 @@ export default function Home() {
               {/* Classification summary */}
               {hasAnalysis && (
                 <div
+                  className="summary-bar-wrapper"
                   style={{
                     display: 'flex',
                     gap: 14,
@@ -374,3 +384,28 @@ function PlayerBar({ player, color }: { player?: { username: string; rating: num
     </div>
   );
 }
+
+/* ── Horizontal eval bar (mobile only) ── */
+function HorizontalEvalBar({ evaluation }: { evaluation: Evaluation | null }) {
+  let pct = 50;
+  let label = '0.0';
+
+  if (evaluation) {
+    if (evaluation.mate != null) {
+      pct = evaluation.mate > 0 ? 100 : 0;
+      label = `M${Math.abs(evaluation.mate)}`;
+    } else {
+      const cp = evaluation.cp ?? 0;
+      pct = Math.min(100, Math.max(0, 50 + (cp / 10)));
+      label = (Math.abs(cp) / 100).toFixed(1);
+    }
+  }
+
+  return (
+    <div className="eval-bar-horizontal">
+      <div className="fill" style={{ width: `${pct}%` }} />
+      <span className={`label ${pct >= 50 ? 'white' : 'black'}`}>{label}</span>
+    </div>
+  );
+}
+
