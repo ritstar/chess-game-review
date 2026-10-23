@@ -1,11 +1,12 @@
+import { memo, useDeferredValue, useMemo } from 'react';
 import { formatLine } from '@/lib/analysis/explain';
 import { lineView } from '@/lib/analysis/review';
 import { formatScore, type PositionAnalysis } from '@/lib/engine/uci';
 import { cn } from '@/lib/utils';
 
 /** The engine's top candidate lines for the position on the board. */
-export function EngineLines({
-  analysis,
+export const EngineLines = memo(function EngineLines({
+  analysis: latest,
   onHover,
   onPlay,
 }: {
@@ -14,6 +15,23 @@ export function EngineLines({
   /** Play the line's first move on the board. */
   onPlay?: (uci: string) => void;
 }) {
+  // Lower priority than the board: a step paints the move first, then the lines.
+  const analysis = useDeferredValue(latest);
+  // Converting lines to SAN replays them with chess.js; only redo it when the analysis changes.
+  const views = useMemo(
+    () =>
+      analysis?.lines.map((line) => {
+        const view = lineView(analysis, line, 10);
+        return {
+          line,
+          view,
+          short: formatLine(analysis.fen, view.san, 10),
+          long: formatLine(analysis.fen, view.san, 20),
+        };
+      }) ?? [],
+    [analysis],
+  );
+
   if (!analysis) {
     return (
       <div className="space-y-1.5 px-3 py-2">
@@ -29,8 +47,7 @@ export function EngineLines({
 
   return (
     <div className="px-2 py-1.5" onMouseLeave={() => onHover?.(null)}>
-      {analysis.lines.map((line) => {
-        const view = lineView(analysis, line, 10);
+      {views.map(({ line, view, short, long }) => {
         const cp = view.score.mate !== undefined ? Math.sign(view.score.mate) : (view.score.cp ?? 0);
         return (
           <button
@@ -49,8 +66,8 @@ export function EngineLines({
             >
               {formatScore(view.score)}
             </span>
-            <span className="truncate font-mono text-[12.5px] text-muted" title={formatLine(analysis.fen, view.san, 20)}>
-              {formatLine(analysis.fen, view.san, 10)}
+            <span className="truncate font-mono text-[12.5px] text-muted" title={long}>
+              {short}
             </span>
           </button>
         );
@@ -58,4 +75,4 @@ export function EngineLines({
       <p className="px-1.5 pt-0.5 text-[11px] text-subtle">Stockfish 17 · depth {analysis.depth}</p>
     </div>
   );
-}
+});

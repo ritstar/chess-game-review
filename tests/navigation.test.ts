@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { makePly, parseGame } from '@/lib/games/pgn';
 import { inVariation, initialNav, navReducer, shownPly, type NavState } from '@/lib/review/navigation';
 
-const { plies } = parseGame('1. e4 e5 2. Nf3 Nc6 3. Bb5 a6');
-const reduce = navReducer(plies);
+const { plies, startFen } = parseGame('1. e4 e5 2. Nf3 Nc6 3. Bb5 a6');
+const reduce = navReducer(plies, startFen);
 const run = (state: NavState, ...actions: Parameters<typeof reduce>[1][]) => actions.reduce(reduce, state);
 
 describe('navigation', () => {
@@ -31,7 +31,7 @@ describe('navigation', () => {
     expect(shownPly(s, plies)?.san).toBe('exd4');
 
     const back = reduce(s, { type: 'backToGame' });
-    expect(back).toEqual({ current: 1, variation: null, cursor: 0 });
+    expect(back).toMatchObject({ current: 1, variation: null, cursor: 0 });
   });
 
   it('stepping back out of a variation lands on the branch point', () => {
@@ -62,6 +62,31 @@ describe('navigation', () => {
     s = reduce(s, { type: 'undo' });
     expect(s.variation!.moves.map((m) => m.san)).toEqual(['d4']);
     s = reduce(s, { type: 'undo' });
-    expect(s).toEqual({ current: 1, variation: null, cursor: 0 });
+    expect(s).toMatchObject({ current: 1, variation: null, cursor: 0 });
+  });
+});
+
+describe('board motion', () => {
+  it('slides forward and backward one move, not on jumps', () => {
+    const one = reduce(initialNav, { type: 'step', delta: 1 });
+    expect(one.motion?.slides).toEqual([{ from: 'e2', to: 'e4' }]);
+    const back = reduce(one, { type: 'step', delta: -1 });
+    expect(back.motion?.slides).toEqual([{ from: 'e4', to: 'e2' }]);
+    expect(reduce(initialNav, { type: 'goto', index: 4 }).motion).toBeNull();
+  });
+
+  it('moves the rook too when castling', () => {
+    const { plies: castle, startFen: start } = parseGame('1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. O-O');
+    const r = navReducer(castle, start);
+    const s = r({ ...initialNav, current: 5 }, { type: 'step', delta: 1 });
+    expect(s.motion?.slides).toEqual([
+      { from: 'e1', to: 'g1' },
+      { from: 'h1', to: 'f1' },
+    ]);
+  });
+
+  it('does not animate drag-and-drop moves', () => {
+    const s = reduce(initialNav, { type: 'play', ply: makePly(startFen, 'd4')!, animate: false });
+    expect(s.motion).toBeNull();
   });
 });

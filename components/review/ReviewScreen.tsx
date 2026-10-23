@@ -23,6 +23,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import { Chess, DEFAULT_POSITION } from 'chess.js';
 import { useExplorer } from '@/hooks/useExplorer';
 import { useGameReview } from '@/hooks/useGameReview';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { evalPoint } from '@/lib/analysis/review';
 import { detectFork, detectThreats } from '@/lib/analysis/tactics';
 import { CLASSIFICATION_LABEL, type Classification, type GameReview, type MoveReview } from '@/lib/analysis/types';
@@ -117,7 +118,8 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
   const { parsed, review, status, progress, error } = useGameReview(game, settings.depth, runId);
   const plies = useMemo(() => parsed?.plies ?? [], [parsed]);
   const startFen = parsed?.startFen ?? DEFAULT_POSITION;
-  const reducer = useMemo(() => navReducer(plies), [plies]);
+  const reducer = useMemo(() => navReducer(plies, startFen), [plies, startFen]);
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
   const [nav, dispatch] = useReducer(reducer, initialNav);
   const [mode, setMode] = useState<'summary' | 'review'>('summary');
   const [flipped, setFlipped] = useState(false);
@@ -166,26 +168,22 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
 
   /* ── Navigation ───────────────────────────────────────────────────── */
 
-  const act = (fn: () => void) => {
+  // Stable handlers (they only touch setters, dispatch and refs) so the
+  // memoised move list, strip and graph don't re-render on every step.
+  const goto = useCallback((index: number) => {
     userAction.current = true;
-    fn();
-  };
-  const leaveTransient = () => {
     setPlaying(false);
     setRetry(null);
-  };
-  const goto = (index: number) =>
-    act(() => {
-      leaveTransient();
-      dispatch({ type: 'goto', index });
-      setMode('review');
-    });
-  const gotoVariation = (cursor: number) =>
-    act(() => {
-      leaveTransient();
-      dispatch({ type: 'gotoVariation', cursor });
-      setMode('review');
-    });
+    dispatch({ type: 'goto', index });
+    setMode('review');
+  }, []);
+  const gotoVariation = useCallback((cursor: number) => {
+    userAction.current = true;
+    setPlaying(false);
+    setRetry(null);
+    dispatch({ type: 'gotoVariation', cursor });
+    setMode('review');
+  }, []);
   const step = useCallback((delta: 1 | -1) => {
     userAction.current = true;
     setPlaying(false);
@@ -193,16 +191,19 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
     dispatch({ type: 'step', delta });
     setMode('review');
   }, []);
-  const backToGame = () =>
-    act(() => {
-      leaveTransient();
-      dispatch({ type: 'backToGame' });
-    });
-  const undo = () =>
-    act(() => {
-      setPlaying(false);
-      dispatch({ type: 'undo' });
-    });
+  const stepBack = useCallback(() => step(-1), [step]);
+  const stepForward = useCallback(() => step(1), [step]);
+  const backToGame = useCallback(() => {
+    userAction.current = true;
+    setPlaying(false);
+    setRetry(null);
+    dispatch({ type: 'backToGame' });
+  }, []);
+  const undo = () => {
+    userAction.current = true;
+    setPlaying(false);
+    dispatch({ type: 'undo' });
+  };
 
   /* ── Moves on the board ───────────────────────────────────────────── */
 
@@ -211,7 +212,7 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
     if (settings.haptics) haptic(kind);
   };
 
-  const playMove = (move: BoardMove | string) => {
+  const playMove = (move: BoardMove | string, dragged = false) => {
     const next = makePly(fen, move, isVar ? nav.cursor : 0);
     if (!next) return;
     setPlaying(false);
@@ -224,7 +225,7 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
     }
     if (retry) setRetry({ index: retry.index });
     userAction.current = true;
-    dispatch({ type: 'play', ply: next });
+    dispatch({ type: 'play', ply: next, animate: !dragged });
   };
 
   const startRetry = () => {
@@ -540,6 +541,7 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
       threatSquares={hideHints ? [] : threat?.targets.map((t) => t.square)}
       interactive
       onMove={playMove}
+      motion={nav.motion}
       onIllegal={() => feedback('illegal', 'illegal')}
       className="rounded-none sm:rounded-md"
     />
@@ -621,75 +623,83 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
         <div className="lg:grid lg:grid-cols-[auto_minmax(360px,1fr)] lg:items-start lg:gap-4">
           {/* Board column (hidden on phones while showing the summary) */}
           <section className={cn('flex-col lg:flex', mode === 'summary' ? 'hidden' : 'flex')} aria-label="Board">
-            <div className="space-y-3 px-3 pt-3 pb-1 lg:hidden">
-              <HorizontalEvalBar evaluation={evaluation} />
-              {/* Fixed height: changing commentary must not move the board. */}
-              <CoachBubble message={coach} fixed className="h-[138px]" />
-            </div>
+            {!isDesktop && (
+              <div className="space-y-3 px-3 pt-3 pb-1">
+                <HorizontalEvalBar evaluation={evaluation} />
+                {/* Fixed height: changing commentary must not move the board. */}
+                <CoachBubble message={coach} fixed className="h-[138px]" />
+              </div>
+            )}
 
             <div className="mx-auto px-3 lg:mx-0 lg:px-0 lg:pl-[1.75rem]">{strip(topColor)}</div>
             <div className="mx-auto flex gap-2 lg:mx-0">
-              <div className="hidden w-5 shrink-0 lg:block" style={{ height: 'var(--board-size)' }}>
-                <EvalBar evaluation={evaluation} orientation={orientation} />
-              </div>
+              {isDesktop && (
+                <div className="w-5 shrink-0" style={{ height: 'var(--board-size)' }}>
+                  <EvalBar evaluation={evaluation} orientation={orientation} />
+                </div>
+              )}
               {board}
             </div>
             <div className="mx-auto px-3 lg:mx-0 lg:px-0 lg:pl-[1.75rem]">{strip(bottomColor)}</div>
 
-            <div className="lg:hidden">
-              <MoveStrip
-                plies={plies}
-                moves={reviewMoves}
-                nav={nav}
-                reviewOf={explorer.reviewOf}
-                onSelectMain={goto}
-                onSelectVariation={gotoVariation}
-                onPrev={() => step(-1)}
-                onNext={() => step(1)}
-                canPrev={!atStart}
-                canNext={!atEnd}
-              />
-              {settings.showEngineLines && <div className="border-y border-line">{engineLines}</div>}
-            </div>
+            {!isDesktop && (
+              <div>
+                <MoveStrip
+                  plies={plies}
+                  moves={reviewMoves}
+                  nav={nav}
+                  reviewOf={explorer.reviewOf}
+                  onSelectMain={goto}
+                  onSelectVariation={gotoVariation}
+                  onPrev={stepBack}
+                  onNext={stepForward}
+                  canPrev={!atStart}
+                  canNext={!atEnd}
+                />
+                {settings.showEngineLines && <div className="border-y border-line">{engineLines}</div>}
+              </div>
+            )}
 
             {/* Desktop transport controls */}
-            <div className="mt-1 hidden items-center justify-between pl-[1.75rem] lg:flex">
-              <button type="button" className="icon-btn" aria-label="Flip board (F)" title="Flip board (F)" onClick={() => setFlipped((f) => !f)}>
-                <Repeat2 size={18} />
-              </button>
-              <div className="flex items-center gap-0.5">
-                <button type="button" className="icon-btn" aria-label="First move" disabled={atStart} onClick={() => goto(-1)}>
-                  <ChevronFirst size={22} />
+            {isDesktop && (
+              <div className="mt-1 flex items-center justify-between pl-[1.75rem]">
+                <button type="button" className="icon-btn" aria-label="Flip board (F)" title="Flip board (F)" onClick={() => setFlipped((f) => !f)}>
+                  <Repeat2 size={18} />
                 </button>
-                <button type="button" className="icon-btn" aria-label="Previous move" disabled={atStart} onClick={() => step(-1)}>
-                  <ChevronLeft size={24} />
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label={playing ? 'Pause' : 'Play'}
-                  onClick={() => {
-                    if (atEnd && !isVar) dispatch({ type: 'goto', index: -1 });
-                    setMode('review');
-                    setPlaying((p) => !p);
-                  }}
-                >
-                  {playing ? <Pause size={20} /> : <Play size={20} />}
-                </button>
-                <button type="button" className="icon-btn" aria-label="Next move" disabled={atEnd} onClick={() => step(1)}>
-                  <ChevronRight size={24} />
-                </button>
-                <button type="button" className="icon-btn" aria-label="Last move" disabled={!isVar && nav.current >= last} onClick={() => goto(last)}>
-                  <ChevronLast size={22} />
-                </button>
+                <div className="flex items-center gap-0.5">
+                  <button type="button" className="icon-btn" aria-label="First move" disabled={atStart} onClick={() => goto(-1)}>
+                    <ChevronFirst size={22} />
+                  </button>
+                  <button type="button" className="icon-btn" aria-label="Previous move" disabled={atStart} onClick={() => step(-1)}>
+                    <ChevronLeft size={24} />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label={playing ? 'Pause' : 'Play'}
+                    onClick={() => {
+                      if (atEnd && !isVar) dispatch({ type: 'goto', index: -1 });
+                      setMode('review');
+                      setPlaying((p) => !p);
+                    }}
+                  >
+                    {playing ? <Pause size={20} /> : <Play size={20} />}
+                  </button>
+                  <button type="button" className="icon-btn" aria-label="Next move" disabled={atEnd} onClick={() => step(1)}>
+                    <ChevronRight size={24} />
+                  </button>
+                  <button type="button" className="icon-btn" aria-label="Last move" disabled={!isVar && nav.current >= last} onClick={() => goto(last)}>
+                    <ChevronLast size={22} />
+                  </button>
+                </div>
+                <SettingsMenu settings={settings} onChange={onSettingsChange} />
               </div>
-              <SettingsMenu settings={settings} onChange={onSettingsChange} />
-            </div>
+            )}
           </section>
 
           {/* Phone summary */}
-          {mode === 'summary' && (
-            <section className="space-y-4 px-3 pt-3 lg:hidden" aria-label="Summary">
+          {!isDesktop && mode === 'summary' && (
+            <section className="space-y-4 px-3 pt-3" aria-label="Summary">
               <CoachBubble message={coach} />
               {review ? (
                 <EvalGraph evals={review.evals} moves={review.moves} plies={plies} current={nav.current} onSelect={goto} height={80} />
@@ -703,83 +713,85 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
           )}
 
           {/* Desktop side panel */}
-          <aside className="card hidden flex-col overflow-hidden lg:flex lg:h-[calc(var(--board-size)_+_8.25rem)]" aria-label="Review">
-            <div className="flex items-center border-b border-line">
-              {(['summary', 'review'] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setMode(t)}
-                  className={cn('relative flex-1 py-3 text-sm font-semibold transition-colors', mode === t ? 'text-fg' : 'text-muted hover:text-fg')}
-                >
-                  {t === 'summary' ? 'Summary' : 'Review'}
-                  {mode === t && <span className="absolute inset-x-6 bottom-0 h-0.5 rounded bg-accent" />}
-                </button>
-              ))}
-            </div>
-
-            {analyzing && (
-              <div className="border-b border-line px-4 py-2.5">
-                <div className="flex items-center justify-between text-[12px] text-muted">
-                  <span className="flex items-center gap-2">
-                    <span className="size-3 animate-spin rounded-full border-2 border-surface-3 border-t-accent" />
-                    Analyzing with Stockfish · {DEPTH_PRESETS[settings.depth].label.toLowerCase()}
-                  </span>
-                  <span className="tabular-nums">{Math.round(progress * 100)}%</span>
-                </div>
-                <div className="mt-2 h-1 overflow-hidden rounded bg-surface-3">
-                  <div className="h-full rounded bg-accent transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
-                </div>
+          {isDesktop && (
+            <aside className="card flex flex-col overflow-hidden lg:h-[calc(var(--board-size)_+_8.25rem)]" aria-label="Review">
+              <div className="flex items-center border-b border-line">
+                {(['summary', 'review'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setMode(t)}
+                    className={cn('relative flex-1 py-3 text-sm font-semibold transition-colors', mode === t ? 'text-fg' : 'text-muted hover:text-fg')}
+                  >
+                    {t === 'summary' ? 'Summary' : 'Review'}
+                    {mode === t && <span className="absolute inset-x-6 bottom-0 h-0.5 rounded bg-accent" />}
+                  </button>
+                ))}
               </div>
-            )}
 
-            {mode === 'summary' ? (
-              <div className="scroll-thin flex-1 overflow-y-auto">
-                <div className="px-4 pt-4">
-                  <CoachBubble message={coach} />
-                </div>
-                <div className="px-4 pt-4">
-                  {review ? (
-                    <EvalGraph evals={review.evals} moves={review.moves} plies={plies} current={nav.current} onSelect={goto} height={88} />
-                  ) : (
-                    <div className="skeleton h-[88px]" />
-                  )}
-                </div>
-                <SummaryPanel game={game} review={review} plies={plies} onSelect={goto} onStart={() => goto(Math.max(0, nav.current))} />
-              </div>
-            ) : (
-              <div className="flex min-h-0 flex-1 flex-col">
-                <div className="px-3 pt-3 pb-2">
-                  <CoachBubble message={coach} fixed className="h-[150px]" />
-                </div>
-                {review && (
-                  <div className="px-4 pb-2">
-                    <EvalGraph evals={review.evals} moves={review.moves} plies={plies} current={nav.current} onSelect={goto} height={44} />
+              {analyzing && (
+                <div className="border-b border-line px-4 py-2.5">
+                  <div className="flex items-center justify-between text-[12px] text-muted">
+                    <span className="flex items-center gap-2">
+                      <span className="size-3 animate-spin rounded-full border-2 border-surface-3 border-t-accent" />
+                      Analyzing with Stockfish · {DEPTH_PRESETS[settings.depth].label.toLowerCase()}
+                    </span>
+                    <span className="tabular-nums">{Math.round(progress * 100)}%</span>
                   </div>
-                )}
-                {settings.showEngineLines && <div className="border-t border-line">{engineLines}</div>}
-                <div className="min-h-0 flex-1 border-t border-line">
-                  <MoveList
-                    plies={plies}
-                    moves={reviewMoves}
-                    nav={nav}
-                    reviewOf={explorer.reviewOf}
-                    onSelect={goto}
-                    onSelectVariation={gotoVariation}
-                    onDiscardVariation={backToGame}
-                  />
+                  <div className="mt-2 h-1 overflow-hidden rounded bg-surface-3">
+                    <div className="h-full rounded bg-accent transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
+                  </div>
                 </div>
-                <div className="border-t border-line p-2">
-                  <ActionBar actions={actions} primary={primary} />
+              )}
+
+              {mode === 'summary' ? (
+                <div className="scroll-thin flex-1 overflow-y-auto">
+                  <div className="px-4 pt-4">
+                    <CoachBubble message={coach} />
+                  </div>
+                  <div className="px-4 pt-4">
+                    {review ? (
+                      <EvalGraph evals={review.evals} moves={review.moves} plies={plies} current={nav.current} onSelect={goto} height={88} />
+                    ) : (
+                      <div className="skeleton h-[88px]" />
+                    )}
+                  </div>
+                  <SummaryPanel game={game} review={review} plies={plies} onSelect={goto} onStart={() => goto(Math.max(0, nav.current))} />
                 </div>
-              </div>
-            )}
-          </aside>
+              ) : (
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="px-3 pt-3 pb-2">
+                    <CoachBubble message={coach} fixed className="h-[150px]" />
+                  </div>
+                  {review && (
+                    <div className="px-4 pb-2">
+                      <EvalGraph evals={review.evals} moves={review.moves} plies={plies} current={nav.current} onSelect={goto} height={44} />
+                    </div>
+                  )}
+                  {settings.showEngineLines && <div className="border-t border-line">{engineLines}</div>}
+                  <div className="min-h-0 flex-1 border-t border-line">
+                    <MoveList
+                      plies={plies}
+                      moves={reviewMoves}
+                      nav={nav}
+                      reviewOf={explorer.reviewOf}
+                      onSelect={goto}
+                      onSelectVariation={gotoVariation}
+                      onDiscardVariation={backToGame}
+                    />
+                  </div>
+                  <div className="border-t border-line p-2">
+                    <ActionBar actions={actions} primary={primary} />
+                  </div>
+                </div>
+              )}
+            </aside>
+          )}
         </div>
       )}
 
       {/* Phone bottom bar */}
-      {parsed && (
+      {parsed && !isDesktop && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
           <ActionBar actions={actions} primary={primary} />
         </div>

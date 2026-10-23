@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadOpeningBook, lookupOpening } from '@/lib/analysis/openings';
 import { evalPoint, reviewMove, terminalEval } from '@/lib/analysis/review';
 import type { Classification, MoveReview } from '@/lib/analysis/types';
@@ -125,9 +125,12 @@ export function useExplorer({ ply, prevPly, prevClassification, known, depth, pe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fenAfter, uci, depth]);
 
+  // Stable between renders unless a new rating arrives, so memoised move lists can skip work.
+  const reviewOf = useCallback((p: PlyRecord | null | undefined) => (p ? (reviews[exploredKey(p)] ?? null) : null), [reviews]);
+
   return {
     /** Live engine output for the tried position on the board (null until the first result). */
     live: live && live.fen === fenAfter ? live : null,
-    reviewOf: (p: PlyRecord | null | undefined) => (p ? (reviews[exploredKey(p)] ?? null) : null),
+    reviewOf,
   };
 }

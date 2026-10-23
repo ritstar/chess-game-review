@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import type { EvalPoint, MoveReview } from '@/lib/analysis/types';
 import { formatScore } from '@/lib/engine/uci';
 import type { PlyRecord } from '@/lib/games/pgn';
@@ -23,24 +23,30 @@ interface EvalGraphProps {
  * White's winning chances over the game. Click or drag to jump to a move;
  * coloured dots mark the key moments.
  */
-export function EvalGraph({ evals, moves, plies, current, onSelect, height = 96 }: EvalGraphProps) {
+export const EvalGraph = memo(function EvalGraph({ evals, moves, plies, current, onSelect, height = 96 }: EvalGraphProps) {
   const ref = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
   const n = evals.length - 1;
-  if (n < 1) return null;
 
   const x = (i: number) => (i / n) * W;
   const y = (win: number) => H - (win / 100) * H;
 
-  // Unanalysed positions hold the last known value so the area stays continuous.
-  let last = 50;
-  const points = evals.map((e, i) => {
-    if (e) last = e.win;
-    return [x(i), y(e ? e.win : last)] as const;
-  });
-  const analysed = evals.findLastIndex((e) => e !== null);
-  const line = points.slice(0, analysed + 1).map(([px, py]) => `${px.toFixed(1)},${py.toFixed(1)}`).join(' ');
-  const area = analysed >= 0 ? `0,${H} ${line} ${x(analysed).toFixed(1)},${H}` : '';
+  // The filled area only changes when evaluations arrive, not on every step.
+  const area = useMemo(() => {
+    if (n < 1) return '';
+    // Unanalysed positions hold the last known value so the area stays continuous.
+    let last = 50;
+    const points = evals.map((e, i) => {
+      if (e) last = e.win;
+      return [(i / n) * W, H - ((e ? e.win : last) / 100) * H] as const;
+    });
+    const analysed = evals.findLastIndex((e) => e !== null);
+    if (analysed < 0) return '';
+    const line = points.slice(0, analysed + 1).map(([px, py]) => `${px.toFixed(1)},${py.toFixed(1)}`).join(' ');
+    return `0,${H} ${line} ${((analysed / n) * W).toFixed(1)},${H}`;
+  }, [evals, n]);
+
+  if (n < 1) return null;
 
   const indexFromEvent = (clientX: number) => {
     const rect = ref.current?.getBoundingClientRect();
@@ -120,4 +126,4 @@ export function EvalGraph({ evals, moves, plies, current, onSelect, height = 96 
       )}
     </div>
   );
-}
+});

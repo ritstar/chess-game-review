@@ -251,3 +251,25 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Piece movement: starts on the first frame after a step, no JS involved. */
+@keyframes piece-slide {
+  from {
+    transform: translate(calc(var(--dx) * 100%), calc(var(--dy) * 100%));
+  }
+  to {
+    transform: none;
+  }
+}
+
+.piece-slide {
+  z-index: 20;
+  animation: piece-slide 140ms cubic-bezier(0.25, 0.8, 0.35, 1);
+  will-change: transform;
+}
+
+/* No double-tap-to-zoom wait on controls. */
+button,
+a {
+  touch-action: manipulation;
+}

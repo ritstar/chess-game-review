@@ -13,18 +13,28 @@ export interface NavState {
   current: number;
   variation: { base: number; moves: PlyRecord[] } | null;
   cursor: number;
+  /** Pieces to slide on the board for the last step, if it was a single move. */
+  motion?: Motion | null;
+}
+
+export interface Motion {
+  /** Changes for every new step so the slide restarts. */
+  key: string;
+  /** Each piece now on `to` slides in from `from`. */
+  slides: { from: string; to: string }[];
 }
 
 export type NavAction =
   | { type: 'goto'; index: number }
   | { type: 'gotoVariation'; cursor: number }
   | { type: 'step'; delta: 1 | -1 }
-  | { type: 'play'; ply: PlyRecord }
+  /** `animate: false` for drag-and-drop, where the piece is already in place. */
+  | { type: 'play'; ply: PlyRecord; animate?: boolean }
   | { type: 'setLine'; base: number; moves: PlyRecord[]; cursor: number }
   | { type: 'undo' }
   | { type: 'backToGame' };
 
-export const initialNav: NavState = { current: -1, variation: null, cursor: 0 };
+export const initialNav: NavState = { current: -1, variation: null, cursor: 0, motion: null };
 
 export function inVariation(s: NavState): boolean {
   return s.cursor > 0 && !!s.variation;
@@ -36,7 +46,41 @@ export function shownPly(s: NavState, mainline: PlyRecord[]): PlyRecord | null {
   return s.current >= 0 ? (mainline[s.current] ?? null) : null;
 }
 
-export function navReducer(mainline: PlyRecord[]) {
+/** The squares a ply moves pieces between (two pieces when castling). */
+function slidesFor(ply: PlyRecord, direction: 1 | -1): Motion['slides'] {
+  const pairs = [{ from: ply.from, to: ply.to }];
+  if (ply.san.startsWith('O-O')) {
+    const rank = ply.color === 'w' ? '1' : '8';
+    pairs.push(ply.san.startsWith('O-O-O') ? { from: `a${rank}`, to: `d${rank}` } : { from: `h${rank}`, to: `f${rank}` });
+  }
+  return direction === 1 ? pairs : pairs.map(({ from, to }) => ({ from: to, to: from }));
+}
+
+/**
+ * Board animation for going from one state to the next: slide forward when
+ * the new position is one move after the old, backward when one move
+ * before, and nothing for jumps.
+ */
+function motionBetween(prev: NavState, next: NavState, mainline: PlyRecord[], startFen: string): Motion | null {
+  const before = shownPly(prev, mainline);
+  const after = shownPly(next, mainline);
+  const fenOf = (p: PlyRecord | null) => p?.fenAfter ?? startFen;
+  if (after && after.fenBefore === fenOf(before)) return { key: `f:${after.fenAfter}`, slides: slidesFor(after, 1) };
+  if (before && before.fenBefore === fenOf(after)) return { key: `b:${before.fenAfter}`, slides: slidesFor(before, -1) };
+  return null;
+}
+
+export function navReducer(mainline: PlyRecord[], startFen: string) {
+  const reduce = baseReducer(mainline);
+  return (s: NavState, a: NavAction): NavState => {
+    const next = reduce(s, a);
+    if (next === s) return s;
+    const animate = a.type !== 'play' || a.animate !== false;
+    return { ...next, motion: animate ? motionBetween(s, next, mainline, startFen) : null };
+  };
+}
+
+function baseReducer(mainline: PlyRecord[]) {
   const last = mainline.length - 1;
   const clamp = (i: number) => Math.max(-1, Math.min(last, i));
 

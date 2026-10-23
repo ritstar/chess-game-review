@@ -1,7 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { Fragment, useEffect, useRef } from 'react';
+import { Fragment, memo, useEffect, useRef } from 'react';
 import { ClassificationIcon } from '@/components/ClassificationIcon';
 import type { Classification, MoveReview } from '@/lib/analysis/types';
 import { figurine } from '@/lib/format';
@@ -21,6 +21,37 @@ interface MoveListProps {
   onSelectVariation: (cursor: number) => void;
   onDiscardVariation: () => void;
 }
+
+/** One game move. Memoised: a step only re-renders the two cells whose state changed. */
+const MoveCell = memo(function MoveCell({
+  ply,
+  classification: c,
+  active,
+  onSelect,
+}: {
+  ply: PlyRecord;
+  classification?: Classification;
+  active: boolean;
+  onSelect: (index: number) => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-active={active}
+      onClick={() => onSelect(ply.index)}
+      className={cn(
+        'flex h-8 items-center gap-1.5 rounded-md px-2 text-left text-[14px] font-semibold transition-colors',
+        active ? 'bg-surface-3 text-fg' : 'text-fg/85 hover:bg-surface-2',
+      )}
+      style={active && c ? { boxShadow: `inset 0 -2px 0 var(--color-${c})` } : undefined}
+    >
+      <span className="flex size-4 items-center justify-center">
+        {c && SHOWN.has(c) && <ClassificationIcon classification={c} size={16} />}
+      </span>
+      <span className="figurine">{figurine(ply.san)}</span>
+    </button>
+  );
+});
 
 export function MoveList({ plies, moves, nav, reviewOf, onSelect, onSelectVariation, onDiscardVariation }: MoveListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,28 +75,12 @@ export function MoveList({ plies, moves, nav, reviewOf, onSelect, onSelectVariat
     rows[rows.length - 1][p.color === 'w' ? 'white' : 'black'] = p;
   }
 
-  const cell = (p?: PlyRecord) => {
-    if (!p) return <div />;
-    const c = moves[p.index]?.classification;
-    const active = !inVar && p.index === nav.current;
-    return (
-      <button
-        type="button"
-        data-active={active}
-        onClick={() => onSelect(p.index)}
-        className={cn(
-          'flex h-8 items-center gap-1.5 rounded-md px-2 text-left text-[14px] font-semibold transition-colors',
-          active ? 'bg-surface-3 text-fg' : 'text-fg/85 hover:bg-surface-2',
-        )}
-        style={active && c ? { boxShadow: `inset 0 -2px 0 var(--color-${c})` } : undefined}
-      >
-        <span className="flex size-4 items-center justify-center">
-          {c && SHOWN.has(c) && <ClassificationIcon classification={c} size={16} />}
-        </span>
-        <span className="figurine">{figurine(p.san)}</span>
-      </button>
+  const cell = (p?: PlyRecord) =>
+    p ? (
+      <MoveCell ply={p} classification={moves[p.index]?.classification} active={!inVar && p.index === nav.current} onSelect={onSelect} />
+    ) : (
+      <div />
     );
-  };
 
   const variation = nav.variation;
   const variationBlock = variation && (

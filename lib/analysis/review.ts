@@ -60,7 +60,21 @@ export function toWhite(score: Score, fen: string): Score {
   return turnOf(fen) === 'w' ? score : flipScore(score);
 }
 
+const evalCache = new WeakMap<PositionAnalysis, EvalPoint | null>();
+
+/**
+ * White-POV evaluation of an analysed position. Cached per analysis object:
+ * the review is rebuilt many times while results stream in, and the game-over
+ * check behind it isn't free.
+ */
 export function evalPoint(analysis: PositionAnalysis): EvalPoint | null {
+  if (evalCache.has(analysis)) return evalCache.get(analysis)!;
+  const result = computeEvalPoint(analysis);
+  evalCache.set(analysis, result);
+  return result;
+}
+
+function computeEvalPoint(analysis: PositionAnalysis): EvalPoint | null {
   const terminal = terminalEval(analysis.fen);
   if (terminal) return terminal;
   const top = analysis.lines[0];

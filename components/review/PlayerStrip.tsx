@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { PIECE_GLYPH, formatClock } from '@/lib/format';
 import type { PlayerInfo } from '@/lib/games/types';
 import { cn } from '@/lib/utils';
@@ -12,7 +13,7 @@ interface PlayerStripProps {
   accuracy?: number | null;
 }
 
-export function PlayerStrip({ player, color, captured, materialDiff, clock, toMove, accuracy }: PlayerStripProps) {
+export const PlayerStrip = memo(function PlayerStrip({ player, color, captured, materialDiff, clock, toMove, accuracy }: PlayerStripProps) {
   return (
     <div className="flex h-11 items-center gap-2.5">
       <div
@@ -55,4 +56,4 @@ export function PlayerStrip({ player, color, captured, materialDiff, clock, toMo
       )}
     </div>
   );
-}
+});
