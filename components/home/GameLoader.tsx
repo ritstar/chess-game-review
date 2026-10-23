@@ -23,6 +23,8 @@ interface GameLoaderProps {
   loading: boolean;
   recent: RecentSearch[];
   onRemoveRecent: (r: RecentSearch) => void;
+  /** Showing someone's games: shrink to a one-line bar with a "Change" button. */
+  collapsed?: { username: string; source: 'chesscom' | 'lichess'; onExpand: () => void };
 }
 
 const TABS: { id: LoaderSource; label: string }[] = [
@@ -35,6 +37,24 @@ export function GameLoader(props: GameLoaderProps) {
   const { source, onSourceChange, username, onUsernameChange, onSearch, pgn, onPgnChange, onPgn, loading, recent } = props;
   const fileRef = useRef<HTMLInputElement>(null);
   const recentHere = recent.filter((r) => r.source === source);
+
+  if (props.collapsed) {
+    const c = props.collapsed;
+    return (
+      <div className="card flex items-center gap-3 px-3.5 py-2.5">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-3 text-[15px] font-bold" aria-hidden>
+          {c.username.charAt(0).toUpperCase()}
+        </span>
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="block truncate text-[15px] font-semibold">{c.username}</span>
+          <span className="block text-[12px] text-muted">{c.source === 'chesscom' ? 'Chess.com' : 'Lichess'}</span>
+        </span>
+        <button type="button" className="btn btn-ghost border border-line px-3 py-2 text-[13px]" onClick={c.onExpand}>
+          <Search size={15} /> Change
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="card p-2 shadow-[0_10px_40px_rgba(0,0,0,.25)]">
@@ -71,7 +91,7 @@ export function GameLoader(props: GameLoaderProps) {
               placeholder={'Paste a PGN or a Lichess game link…\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 …'}
               rows={6}
               spellCheck={false}
-              className="input scroll-thin w-full resize-y font-mono text-[13px]"
+              className="input scroll-thin w-full resize-y font-mono text-[16px] sm:text-[13px]"
               aria-label="PGN or game link"
             />
             <div className="flex gap-2">

@@ -1,6 +1,6 @@
 'use client';
 
-import { Cpu, Lock, Sparkles } from 'lucide-react';
+import { Cpu, Lock, RefreshCw, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GameList, GameListSkeleton } from '@/components/home/GameList';
 import { GameLoader, type LoaderSource, type RecentSearch } from '@/components/home/GameLoader';
@@ -52,6 +52,8 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [game, setGame] = useState<GameRecord | null>(null);
   const [recent, setRecent] = useState<RecentSearch[]>([]);
+  /** Whether the search form is open while a player's games are listed. */
+  const [editingSearch, setEditingSearch] = useState(false);
   const pendingGameId = useRef<string | null>(null);
   const requestId = useRef(0);
 
@@ -62,6 +64,7 @@ export function App() {
     setGames([]);
     setCursor(null);
     setSearched({ source: src, username: name });
+    setEditingSearch(false);
     try {
       const page = await fetchGames(src, name, null);
       if (id !== requestId.current) return;
@@ -101,6 +104,14 @@ export function App() {
       setUsername(u);
       pendingGameId.current = params.get('g');
       void search(src, u);
+      return;
+    }
+    // Most visits are "review my latest game": reopen the last player's games.
+    const last = readRecent()[0];
+    if (last) {
+      setSource(last.source);
+      setUsername(last.username);
+      void search(last.source, last.username);
     }
   }, [search]);
 
@@ -159,7 +170,9 @@ export function App() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className={cn('sticky top-0 z-40 border-b border-line/70 bg-bg/85 backdrop-blur', game && 'hidden lg:block')}>
+      <header
+        className={cn('sticky top-0 z-40 border-b border-line/70 bg-bg/85 pt-[env(safe-area-inset-top)] backdrop-blur', game && 'hidden lg:block')}
+      >
         <div className="mx-auto flex h-14 max-w-[1320px] items-center gap-3 px-4">
           <button type="button" onClick={() => game && closeGame()} className="flex items-center gap-2.5" aria-label="Home">
             <Logo />
@@ -175,16 +188,19 @@ export function App() {
         {game ? (
           <ReviewScreen key={game.id} game={game} settings={settings} onSettingsChange={updateSettings} onBack={closeGame} />
         ) : (
-          <div className="mx-auto w-full max-w-3xl px-4 pt-10 pb-16 sm:pt-16">
-            <div className="mb-8 text-center">
-              <h1 className="text-[32px] leading-tight font-extrabold tracking-tight sm:text-[44px]">
-                Find out what really happened in your game.
-              </h1>
-              <p className="mx-auto mt-3 max-w-xl text-[15px] text-muted sm:text-[16px]">
-                Free move-by-move review of your Chess.com and Lichess games — brilliant moves, blunders, accuracy
-                and the reasons behind them.
-              </p>
-            </div>
+          <div className={cn('mx-auto w-full max-w-3xl px-4 pb-16', searched ? 'pt-4 sm:pt-8' : 'pt-8 sm:pt-16')}>
+            {/* The pitch is for first-time visitors; once games are showing, it gets out of the way. */}
+            {!searched && (
+              <div className="mb-6 text-center sm:mb-8">
+                <h1 className="text-[28px] leading-tight font-extrabold tracking-tight sm:text-[44px]">
+                  Find out what really happened in your game.
+                </h1>
+                <p className="mx-auto mt-3 max-w-xl text-[15px] text-muted sm:text-[16px]">
+                  Free move-by-move review of your Chess.com and Lichess games: brilliant moves, blunders, accuracy
+                  and the reasons behind them.
+                </p>
+              </div>
+            )}
 
             <GameLoader
               source={source}
@@ -203,6 +219,11 @@ export function App() {
               onPgn={loadPgn}
               loading={loading}
               recent={recent}
+              collapsed={
+                searched && !editingSearch && source !== 'pgn' && !error
+                  ? { username: searched.username, source: searched.source, onExpand: () => setEditingSearch(true) }
+                  : undefined
+              }
               onRemoveRecent={(r) =>
                 setRecent((prev) => {
                   const next = prev.filter((x) => !(x.source === r.source && x.username === r.username));
@@ -218,14 +239,24 @@ export function App() {
               </div>
             )}
 
-            <div className="mt-8">
+            <div className={searched ? 'mt-5' : 'mt-8'}>
               {loading && source !== 'pgn' ? (
                 <GameListSkeleton />
               ) : games.length > 0 && source !== 'pgn' ? (
                 <>
-                  <h2 className="mb-3 text-[13px] font-bold tracking-wider text-subtle uppercase">
-                    {searched?.username}&apos;s recent games
-                  </h2>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="text-[13px] font-bold tracking-wider text-subtle uppercase">
+                      {searched?.username}&apos;s recent games
+                    </h2>
+                    <button
+                      type="button"
+                      className="icon-btn -mr-2 size-9"
+                      aria-label="Refresh games"
+                      onClick={() => searched && void search(searched.source, searched.username)}
+                    >
+                      <RefreshCw size={16} />
+                    </button>
+                  </div>
                   <GameList
                     games={games}
                     onSelect={openGame}
@@ -242,7 +273,12 @@ export function App() {
         )}
       </main>
 
-      <footer className={cn('border-t border-line/70 py-5 text-center text-[12px] text-subtle', game && 'hidden lg:block')}>
+      <footer
+        className={cn(
+          'border-t border-line/70 px-4 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center text-[12px] text-subtle',
+          game && 'hidden lg:block',
+        )}
+      >
         Analysis by{' '}
         <a className="underline hover:text-muted" href="https://stockfishchess.org" target="_blank" rel="noreferrer">
           Stockfish

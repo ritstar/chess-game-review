@@ -18,11 +18,19 @@ export const metadata: Metadata = {
     description: 'Free Stockfish game review for Chess.com and Lichess games.',
     type: 'website',
   },
+  // Installable to the home screen: opens full-screen without browser bars.
+  appleWebApp: { capable: true, title: 'Game Review', statusBarStyle: 'black-translucent' },
+  icons: {
+    icon: [{ url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }],
+    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180' }],
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: '#161512',
   colorScheme: 'dark',
+  // Lets the layout use the whole screen (notch, home indicator) with safe-area padding.
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

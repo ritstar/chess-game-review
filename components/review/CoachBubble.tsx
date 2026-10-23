@@ -1,3 +1,4 @@
+import { ChevronRight } from 'lucide-react';
 import { defaultPieces } from 'react-chessboard';
 import { ClassificationIcon } from '@/components/ClassificationIcon';
 import type { Classification, EvalPoint } from '@/lib/analysis/types';
@@ -52,8 +53,20 @@ function Headline({ san, headline }: { san?: string; headline: string }) {
  * comments scroll inside it, so content changes never move what's below
  * (on phones, the board).
  */
-export function CoachBubble({ message, className, fixed = false }: { message: CoachMessage; className?: string; fixed?: boolean }) {
+export function CoachBubble({
+  message,
+  className,
+  fixed = false,
+  onOpen,
+}: {
+  message: CoachMessage;
+  className?: string;
+  fixed?: boolean;
+  /** Compact phone variant: two lines, tap to open the full explanation. */
+  onOpen?: () => void;
+}) {
   const { icon, san, headline, details = [], evaluation, loading, tag, tone = 'default' } = message;
+  if (onOpen) return <CompactBubble message={message} onOpen={onOpen} className={className} />;
   return (
     <div className={cn('flex items-start gap-2.5', className)}>
       <CoachAvatar className="mt-1 size-12 sm:size-14" />
@@ -110,6 +123,46 @@ export function CoachBubble({ message, className, fixed = false }: { message: Co
           )
         )}
       </div>
+    </div>
+  );
+}
+
+/** Phone coach: a fixed-height two-line summary; the full text opens in a sheet. */
+function CompactBubble({ message, onOpen, className }: { message: CoachMessage; onOpen: () => void; className?: string }) {
+  // No eval chip here: the eval bar right above already shows it.
+  const { icon, san, headline, details = [], loading, tag, tone = 'default' } = message;
+  return (
+    <div className={cn('flex items-stretch gap-2', className)}>
+      <CoachAvatar className="mt-0.5 size-9 self-start rounded-xl p-1" />
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label="Show full explanation"
+        className={cn(
+          'relative flex min-w-0 flex-1 flex-col rounded-2xl bg-[#fbfbf9] py-2 pr-7 pl-3 text-left text-[#2b2926] shadow-[0_4px_14px_rgba(0,0,0,.25)] active:bg-[#efeee9]',
+          tone === 'success' && 'ring-2 ring-[var(--color-best)]',
+          tone === 'error' && 'ring-2 ring-[var(--color-mistake)]',
+        )}
+      >
+        <span className="absolute top-3 -left-1 size-3 rotate-45 rounded-[2px] bg-[#fbfbf9]" aria-hidden />
+        {tag && (
+          <span className="absolute -top-2 left-3 rounded-full bg-[#3b3834] px-1.5 py-0.5 text-[9px] leading-none font-bold tracking-wide text-[#ecebe8] uppercase shadow">
+            {tag}
+          </span>
+        )}
+        <span className="flex min-w-0 items-center gap-1.5">
+          {icon && <ClassificationIcon classification={icon} size={20} className="shrink-0" />}
+          <span className="min-w-0 flex-1 truncate text-[15px] leading-tight font-extrabold">
+            <Headline san={san} headline={headline} />
+          </span>
+        </span>
+        {loading ? (
+          <span className="mt-1.5 block h-2.5 w-4/5 animate-pulse rounded bg-[#e6e5e0]" />
+        ) : (
+          <span className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-[#4a4743]">{details[0] ?? ''}</span>
+        )}
+        <ChevronRight size={16} className="absolute top-1/2 right-1.5 -translate-y-1/2 text-[#9b9892]" aria-hidden />
+      </button>
     </div>
   );
 }

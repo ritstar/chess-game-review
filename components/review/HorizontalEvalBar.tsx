@@ -1,8 +1,9 @@
 import type { EvalPoint } from '@/lib/analysis/types';
 import { formatScore } from '@/lib/engine/uci';
+import { cn } from '@/lib/utils';
 
 /** Mobile evaluation bar: White's share fills from the left, score on the leading side. */
-export function HorizontalEvalBar({ evaluation }: { evaluation: EvalPoint | null }) {
+export function HorizontalEvalBar({ evaluation, className }: { evaluation: EvalPoint | null; className?: string }) {
   const win = evaluation?.win ?? 50;
   const share = evaluation?.terminal === 'checkmate' ? win : Math.min(97, Math.max(3, win));
   const whiteAhead = (evaluation?.cp ?? 0) >= 0;
@@ -18,7 +19,7 @@ export function HorizontalEvalBar({ evaluation }: { evaluation: EvalPoint | null
 
   return (
     <div
-      className="relative h-7 overflow-hidden rounded-md bg-[#403d39]"
+      className={cn('relative h-7 overflow-hidden rounded-md bg-[#403d39]', className)}
       role="meter"
       aria-label="Evaluation"
       aria-valuemin={0}
@@ -29,7 +30,7 @@ export function HorizontalEvalBar({ evaluation }: { evaluation: EvalPoint | null
       <div className="absolute inset-y-0 left-0 bg-[#f2f2f2] transition-[width] duration-500 ease-out" style={{ width: `${share}%` }} />
       {label && (
         <span
-          className="absolute inset-y-0 flex items-center px-2.5 font-mono text-[14px] font-bold"
+          className="absolute inset-y-0 flex items-center px-2 font-mono text-[12px] font-bold"
           style={whiteAhead ? { left: 0, color: '#2b2926' } : { right: 0, color: '#f2f2f2' }}
         >
           {label}

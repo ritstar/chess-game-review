@@ -23,6 +23,18 @@ export interface ReviewState {
   fromCache: boolean;
 }
 
+export interface ReviewSummary {
+  white: number | null;
+  black: number | null;
+}
+
+export const summaryKey = (gameId: string) => `summary:${gameId}`;
+
+/** A few bytes per reviewed game, so the game list can show accuracies. */
+function saveSummary(gameId: string, review: GameReview) {
+  return cacheSet<ReviewSummary>(summaryKey(gameId), { white: review.white.accuracy, black: review.black.accuracy });
+}
+
 /** Keep cached entries small: long PVs are only shown truncated anyway. */
 function compact(p: PositionAnalysis): PositionAnalysis {
   return { ...p, lines: p.lines.map((l) => ({ ...l, pv: l.pv.slice(0, 12) })) };
@@ -75,7 +87,9 @@ export function useGameReview(game: GameRecord | null, depth: AnalysisDepth, run
       const cached = runId === 0 ? await cacheGet<PositionAnalysis[]>(key) : null;
       if (controller.signal.aborted) return;
       if (cached && cached.length === fens.length) {
-        setState({ review: buildReview(plies, cached, book, undefined, game.perspective), status: 'done', progress: 1, error: null, fromCache: true });
+        const review = buildReview(plies, cached, book, undefined, game.perspective);
+        setState({ review, status: 'done', progress: 1, error: null, fromCache: true });
+        void saveSummary(game.id, review);
         return;
       }
 
@@ -115,8 +129,10 @@ export function useGameReview(game: GameRecord | null, depth: AnalysisDepth, run
       if (controller.signal.aborted) return;
 
       const final = positions as PositionAnalysis[];
-      setState({ review: buildReview(plies, final, book, memo, game.perspective), status: 'done', progress: 1, error: null, fromCache: false });
+      const review = buildReview(plies, final, book, memo, game.perspective);
+      setState({ review, status: 'done', progress: 1, error: null, fromCache: false });
       void cacheSet(key, final);
+      void saveSummary(game.id, review);
     };
 
     run().catch((err) => {

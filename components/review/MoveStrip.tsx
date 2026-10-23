@@ -22,6 +22,8 @@ interface MoveStripProps {
   onNext: () => void;
   canPrev: boolean;
   canNext: boolean;
+  /** Slimmer row for the full-screen phone layout. */
+  compact?: boolean;
 }
 
 /** One move in the strip. Memoised: a step only re-renders the two moves whose state changed. */
@@ -47,7 +49,7 @@ const StripToken = memo(function StripToken({
   return (
     <span className="flex shrink-0 items-center">
       {showNumber && (
-        <span className="pr-1 pl-2 text-[15px] text-subtle">
+        <span className="pr-1 pl-2 text-[0.88em] text-subtle">
           {ply.moveNumber}
           {ply.color === 'w' ? '.' : '...'}
         </span>
@@ -57,7 +59,7 @@ const StripToken = memo(function StripToken({
         data-key={dataKey}
         onClick={() => onSelect(target)}
         className={cn(
-          'flex items-center gap-1 rounded-md px-2 py-1 text-[17px] font-semibold whitespace-nowrap',
+          'flex items-center gap-1 rounded-md px-2 py-1 font-semibold whitespace-nowrap',
           active ? 'bg-surface-3 text-fg shadow-[inset_0_-2px_0_var(--color-fg)]' : 'text-fg/80',
           variation && !active && 'text-[var(--color-great)]',
         )}
@@ -70,7 +72,7 @@ const StripToken = memo(function StripToken({
 });
 
 /** Horizontal, scrollable move list for small screens (one row, like the mobile apps). */
-export function MoveStrip({ plies, moves, nav, reviewOf, onSelectMain, onSelectVariation, onPrev, onNext, canPrev, canNext }: MoveStripProps) {
+export function MoveStrip({ plies, moves, nav, reviewOf, onSelectMain, onSelectVariation, onPrev, onNext, canPrev, canNext, compact }: MoveStripProps) {
   const ref = useRef<HTMLDivElement>(null);
   const inVar = nav.cursor > 0 && nav.variation;
   const mainUntil = inVar ? nav.variation!.base : plies.length - 1;
@@ -88,7 +90,7 @@ export function MoveStrip({ plies, moves, nav, reviewOf, onSelectMain, onSelectV
   }, [activeKey]);
 
   return (
-    <div className="flex items-center gap-1 py-1">
+    <div className={cn('flex items-center gap-1', compact ? 'h-10 text-[15px]' : 'py-1 text-[17px]')}>
       <button type="button" className="icon-btn shrink-0" aria-label="Previous move" disabled={!canPrev} onClick={onPrev}>
         <ChevronLeft size={28} />
       </button>

@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
-  Cpu,
   ExternalLink,
   Eye,
   Pause,
@@ -43,9 +42,8 @@ import { CoachBubble, type CoachMessage } from './CoachBubble';
 import { EngineLines } from './EngineLines';
 import { EvalBar } from './EvalBar';
 import { EvalGraph } from './EvalGraph';
-import { HorizontalEvalBar } from './HorizontalEvalBar';
 import { MoveList } from './MoveList';
-import { MoveStrip } from './MoveStrip';
+import { MobileReview } from './MobileReview';
 import { PlayerStrip } from './PlayerStrip';
 import { SettingsMenu } from './SettingsMenu';
 import { SummaryPanel } from './SummaryPanel';
@@ -381,8 +379,9 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
   };
   const toMove = fen.split(' ')[1] as 'w' | 'b';
   const hasClocks = plies.some((p) => p.clock !== undefined);
-  const strip = (color: 'w' | 'b') => (
+  const strip = (color: 'w' | 'b', compact = false) => (
     <PlayerStrip
+      compact={compact}
       player={color === 'w' ? game.white : game.black}
       color={color}
       captured={material.captured[color]}
@@ -543,22 +542,80 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
       onMove={playMove}
       motion={nav.motion}
       onIllegal={() => feedback('illegal', 'illegal')}
-      className="rounded-none sm:rounded-md"
+      className={isDesktop ? 'rounded-md' : 'rounded-[3px]'}
     />
   );
-  const engineLines = (
-    <EngineLines analysis={analysis} onHover={setHoverUci} onPlay={(uci) => playMove({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] })} />
-  );
+
+  const playUci = (uci: string) => playMove({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
+
+  if (!isDesktop) {
+    if (error && status === 'error') {
+      return (
+        <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
+          <p className="text-[15px]">{error}</p>
+          <div className="flex gap-2">
+            <button type="button" className="btn btn-ghost border border-line" onClick={onBack}>
+              <ArrowLeft size={16} /> Games
+            </button>
+            {parsed && (
+              <button type="button" className="btn btn-primary" onClick={() => setRunId((r) => r + 1)}>
+                <RefreshCw size={16} /> Retry
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+    if (!parsed) return null;
+    return (
+      <MobileReview
+        game={game}
+        mode={mode}
+        onModeChange={setMode}
+        onBack={onBack}
+        settings={settings}
+        onSettingsChange={onSettingsChange}
+        coach={coach}
+        moveReview={moveReview}
+        shownPly={ply}
+        evaluation={evaluation}
+        analysis={analysis}
+        board={board}
+        topStrip={strip(topColor, true)}
+        bottomStrip={strip(bottomColor, true)}
+        plies={plies}
+        review={review}
+        nav={nav}
+        reviewOf={explorer.reviewOf}
+        goto={goto}
+        gotoVariation={gotoVariation}
+        stepBack={stepBack}
+        stepForward={stepForward}
+        atStart={atStart}
+        atEnd={atEnd}
+        onPlayUci={playUci}
+        onShowBest={() => showBest()}
+        onShowFollowUp={showFollowUp}
+        canBest={canBest}
+        canShow={canShow}
+        actions={actions}
+        primary={primary}
+        analyzing={analyzing}
+        progress={progress}
+        onFlip={() => setFlipped((f) => !f)}
+        onCopyPgn={copyPgn}
+        copied={copied}
+      />
+    );
+  }
 
   return (
-    <div className="mx-auto w-full max-w-[1320px] pb-36 [--board-size:min(100vw,560px)] lg:px-4 lg:pb-10 lg:[--board-size:min(calc(100dvh_-_17rem),calc(100vw_-_33rem),780px)]">
-      {/* Header: compact app-style bar on phones, game details on desktop */}
-      <header className="sticky top-0 z-40 flex h-14 items-center gap-1 border-b border-line/70 bg-bg/95 px-1 backdrop-blur lg:static lg:h-auto lg:gap-3 lg:border-0 lg:bg-transparent lg:px-0 lg:py-3">
-        <button type="button" onClick={onBack} className="icon-btn lg:btn lg:btn-ghost lg:-ml-2 lg:w-auto lg:px-2" aria-label="Back to games">
-          <ArrowLeft size={22} /> <span className="hidden lg:inline">Games</span>
+    <div className="mx-auto w-full max-w-[1320px] px-4 pb-10 [--board-size:min(calc(100dvh_-_17rem),calc(100vw_-_33rem),780px)]">
+      <header className="flex items-center gap-3 py-3">
+        <button type="button" onClick={onBack} className="btn btn-ghost -ml-2 px-2" aria-label="Back to games">
+          <ArrowLeft size={20} /> Games
         </button>
-        <h1 className="flex-1 text-center text-[19px] font-extrabold lg:hidden">Game Review</h1>
-        <div className="hidden min-w-0 flex-1 lg:block">
+        <div className="min-w-0 flex-1">
           <p className="truncate text-[17px] font-bold">
             {game.white.name} <span className="font-normal text-muted">vs</span> {game.black.name}
             <span className="ml-2 font-mono text-[15px] text-muted">{resultText}</span>
@@ -567,30 +624,7 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
             {[opening, formatTimeControl(game.timeControl), game.termination].filter(Boolean).join(' · ')}
           </p>
         </div>
-        <div className="flex items-center lg:hidden">
-          <button
-            type="button"
-            className={cn('icon-btn', mode === 'summary' && 'text-fg')}
-            aria-label="Game summary"
-            onClick={() => setMode(mode === 'summary' ? 'review' : 'summary')}
-          >
-            <BarChart3 size={20} />
-          </button>
-          <button
-            type="button"
-            className={cn('icon-btn', settings.showEngineLines && 'text-accent')}
-            aria-label="Toggle engine lines"
-            aria-pressed={settings.showEngineLines}
-            onClick={() => onSettingsChange({ ...settings, showEngineLines: !settings.showEngineLines })}
-          >
-            <Cpu size={20} />
-          </button>
-          <button type="button" className="icon-btn" aria-label="Flip board" onClick={() => setFlipped((f) => !f)}>
-            <Repeat2 size={20} />
-          </button>
-          <SettingsMenu settings={settings} onChange={onSettingsChange} placement="down" />
-        </div>
-        <div className="hidden items-center gap-1 lg:flex">
+        <div className="flex items-center gap-1">
           <button type="button" className="btn btn-ghost px-2.5 text-[13px]" onClick={copyPgn}>
             <Copy size={15} /> {copied ? 'Copied' : 'PGN'}
           </button>
@@ -600,16 +634,10 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
             </a>
           )}
         </div>
-        {/* Overlays the header's bottom edge so it never shifts the board. */}
-        {analyzing && (
-          <div className="absolute inset-x-0 -bottom-px h-0.5 bg-surface-3 lg:hidden" aria-hidden>
-            <div className="h-full bg-accent transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
-          </div>
-        )}
       </header>
 
       {error && status === 'error' && (
-        <div className="m-3 flex items-center justify-between gap-3 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm lg:mx-0">
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm">
           <span>{error}</span>
           {parsed && (
             <button type="button" className="btn btn-ghost" onClick={() => setRunId((r) => r + 1)}>
@@ -620,180 +648,127 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
       )}
 
       {parsed && (
-        <div className="lg:grid lg:grid-cols-[auto_minmax(360px,1fr)] lg:items-start lg:gap-4">
-          {/* Board column (hidden on phones while showing the summary) */}
-          <section className={cn('flex-col lg:flex', mode === 'summary' ? 'hidden' : 'flex')} aria-label="Board">
-            {!isDesktop && (
-              <div className="space-y-3 px-3 pt-3 pb-1">
-                <HorizontalEvalBar evaluation={evaluation} />
-                {/* Fixed height: changing commentary must not move the board. */}
-                <CoachBubble message={coach} fixed className="h-[138px]" />
+        <div className="grid grid-cols-[auto_minmax(360px,1fr)] items-start gap-4">
+          <section className="flex flex-col" aria-label="Board">
+            <div className="pl-[1.75rem]">{strip(topColor)}</div>
+            <div className="flex gap-2">
+              <div className="w-5 shrink-0" style={{ height: 'var(--board-size)' }}>
+                <EvalBar evaluation={evaluation} orientation={orientation} />
               </div>
-            )}
-
-            <div className="mx-auto px-3 lg:mx-0 lg:px-0 lg:pl-[1.75rem]">{strip(topColor)}</div>
-            <div className="mx-auto flex gap-2 lg:mx-0">
-              {isDesktop && (
-                <div className="w-5 shrink-0" style={{ height: 'var(--board-size)' }}>
-                  <EvalBar evaluation={evaluation} orientation={orientation} />
-                </div>
-              )}
               {board}
             </div>
-            <div className="mx-auto px-3 lg:mx-0 lg:px-0 lg:pl-[1.75rem]">{strip(bottomColor)}</div>
+            <div className="pl-[1.75rem]">{strip(bottomColor)}</div>
 
-            {!isDesktop && (
-              <div>
-                <MoveStrip
-                  plies={plies}
-                  moves={reviewMoves}
-                  nav={nav}
-                  reviewOf={explorer.reviewOf}
-                  onSelectMain={goto}
-                  onSelectVariation={gotoVariation}
-                  onPrev={stepBack}
-                  onNext={stepForward}
-                  canPrev={!atStart}
-                  canNext={!atEnd}
-                />
-                {settings.showEngineLines && <div className="border-y border-line">{engineLines}</div>}
-              </div>
-            )}
-
-            {/* Desktop transport controls */}
-            {isDesktop && (
-              <div className="mt-1 flex items-center justify-between pl-[1.75rem]">
-                <button type="button" className="icon-btn" aria-label="Flip board (F)" title="Flip board (F)" onClick={() => setFlipped((f) => !f)}>
-                  <Repeat2 size={18} />
+            <div className="mt-1 flex items-center justify-between pl-[1.75rem]">
+              <button type="button" className="icon-btn" aria-label="Flip board (F)" title="Flip board (F)" onClick={() => setFlipped((f) => !f)}>
+                <Repeat2 size={18} />
+              </button>
+              <div className="flex items-center gap-0.5">
+                <button type="button" className="icon-btn" aria-label="First move" disabled={atStart} onClick={() => goto(-1)}>
+                  <ChevronFirst size={22} />
                 </button>
-                <div className="flex items-center gap-0.5">
-                  <button type="button" className="icon-btn" aria-label="First move" disabled={atStart} onClick={() => goto(-1)}>
-                    <ChevronFirst size={22} />
-                  </button>
-                  <button type="button" className="icon-btn" aria-label="Previous move" disabled={atStart} onClick={() => step(-1)}>
-                    <ChevronLeft size={24} />
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label={playing ? 'Pause' : 'Play'}
-                    onClick={() => {
-                      if (atEnd && !isVar) dispatch({ type: 'goto', index: -1 });
-                      setMode('review');
-                      setPlaying((p) => !p);
-                    }}
-                  >
-                    {playing ? <Pause size={20} /> : <Play size={20} />}
-                  </button>
-                  <button type="button" className="icon-btn" aria-label="Next move" disabled={atEnd} onClick={() => step(1)}>
-                    <ChevronRight size={24} />
-                  </button>
-                  <button type="button" className="icon-btn" aria-label="Last move" disabled={!isVar && nav.current >= last} onClick={() => goto(last)}>
-                    <ChevronLast size={22} />
-                  </button>
-                </div>
-                <SettingsMenu settings={settings} onChange={onSettingsChange} />
+                <button type="button" className="icon-btn" aria-label="Previous move" disabled={atStart} onClick={stepBack}>
+                  <ChevronLeft size={24} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={playing ? 'Pause' : 'Play'}
+                  onClick={() => {
+                    if (atEnd && !isVar) dispatch({ type: 'goto', index: -1 });
+                    setMode('review');
+                    setPlaying((p) => !p);
+                  }}
+                >
+                  {playing ? <Pause size={20} /> : <Play size={20} />}
+                </button>
+                <button type="button" className="icon-btn" aria-label="Next move" disabled={atEnd} onClick={stepForward}>
+                  <ChevronRight size={24} />
+                </button>
+                <button type="button" className="icon-btn" aria-label="Last move" disabled={!isVar && nav.current >= last} onClick={() => goto(last)}>
+                  <ChevronLast size={22} />
+                </button>
               </div>
-            )}
+              <SettingsMenu settings={settings} onChange={onSettingsChange} />
+            </div>
           </section>
 
-          {/* Phone summary */}
-          {!isDesktop && mode === 'summary' && (
-            <section className="space-y-4 px-3 pt-3" aria-label="Summary">
-              <CoachBubble message={coach} />
-              {review ? (
-                <EvalGraph evals={review.evals} moves={review.moves} plies={plies} current={nav.current} onSelect={goto} height={80} />
-              ) : (
-                <div className="skeleton h-20" />
-              )}
-              <div className="card -mx-0 overflow-hidden">
-                <SummaryPanel game={game} review={review} plies={plies} onSelect={goto} onStart={() => goto(0)} />
-              </div>
-            </section>
-          )}
+          <aside className="card flex h-[calc(var(--board-size)_+_8.25rem)] flex-col overflow-hidden" aria-label="Review">
+            <div className="flex items-center border-b border-line">
+              {(['summary', 'review'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setMode(t)}
+                  className={cn('relative flex-1 py-3 text-sm font-semibold transition-colors', mode === t ? 'text-fg' : 'text-muted hover:text-fg')}
+                >
+                  {t === 'summary' ? 'Summary' : 'Review'}
+                  {mode === t && <span className="absolute inset-x-6 bottom-0 h-0.5 rounded bg-accent" />}
+                </button>
+              ))}
+            </div>
 
-          {/* Desktop side panel */}
-          {isDesktop && (
-            <aside className="card flex flex-col overflow-hidden lg:h-[calc(var(--board-size)_+_8.25rem)]" aria-label="Review">
-              <div className="flex items-center border-b border-line">
-                {(['summary', 'review'] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setMode(t)}
-                    className={cn('relative flex-1 py-3 text-sm font-semibold transition-colors', mode === t ? 'text-fg' : 'text-muted hover:text-fg')}
-                  >
-                    {t === 'summary' ? 'Summary' : 'Review'}
-                    {mode === t && <span className="absolute inset-x-6 bottom-0 h-0.5 rounded bg-accent" />}
-                  </button>
-                ))}
-              </div>
-
-              {analyzing && (
-                <div className="border-b border-line px-4 py-2.5">
-                  <div className="flex items-center justify-between text-[12px] text-muted">
-                    <span className="flex items-center gap-2">
-                      <span className="size-3 animate-spin rounded-full border-2 border-surface-3 border-t-accent" />
-                      Analyzing with Stockfish · {DEPTH_PRESETS[settings.depth].label.toLowerCase()}
-                    </span>
-                    <span className="tabular-nums">{Math.round(progress * 100)}%</span>
-                  </div>
-                  <div className="mt-2 h-1 overflow-hidden rounded bg-surface-3">
-                    <div className="h-full rounded bg-accent transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
-                  </div>
+            {analyzing && (
+              <div className="border-b border-line px-4 py-2.5">
+                <div className="flex items-center justify-between text-[12px] text-muted">
+                  <span className="flex items-center gap-2">
+                    <span className="size-3 animate-spin rounded-full border-2 border-surface-3 border-t-accent" />
+                    Analyzing with Stockfish · {DEPTH_PRESETS[settings.depth].label.toLowerCase()}
+                  </span>
+                  <span className="tabular-nums">{Math.round(progress * 100)}%</span>
                 </div>
-              )}
-
-              {mode === 'summary' ? (
-                <div className="scroll-thin flex-1 overflow-y-auto">
-                  <div className="px-4 pt-4">
-                    <CoachBubble message={coach} />
-                  </div>
-                  <div className="px-4 pt-4">
-                    {review ? (
-                      <EvalGraph evals={review.evals} moves={review.moves} plies={plies} current={nav.current} onSelect={goto} height={88} />
-                    ) : (
-                      <div className="skeleton h-[88px]" />
-                    )}
-                  </div>
-                  <SummaryPanel game={game} review={review} plies={plies} onSelect={goto} onStart={() => goto(Math.max(0, nav.current))} />
+                <div className="mt-2 h-1 overflow-hidden rounded bg-surface-3">
+                  <div className="h-full rounded bg-accent transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
                 </div>
-              ) : (
-                <div className="flex min-h-0 flex-1 flex-col">
-                  <div className="px-3 pt-3 pb-2">
-                    <CoachBubble message={coach} fixed className="h-[150px]" />
-                  </div>
-                  {review && (
-                    <div className="px-4 pb-2">
-                      <EvalGraph evals={review.evals} moves={review.moves} plies={plies} current={nav.current} onSelect={goto} height={44} />
-                    </div>
+              </div>
+            )}
+
+            {mode === 'summary' ? (
+              <div className="scroll-thin flex-1 overflow-y-auto">
+                <div className="px-4 pt-4">
+                  <CoachBubble message={coach} />
+                </div>
+                <div className="px-4 pt-4">
+                  {review ? (
+                    <EvalGraph evals={review.evals} moves={review.moves} plies={plies} current={nav.current} onSelect={goto} height={88} />
+                  ) : (
+                    <div className="skeleton h-[88px]" />
                   )}
-                  {settings.showEngineLines && <div className="border-t border-line">{engineLines}</div>}
-                  <div className="min-h-0 flex-1 border-t border-line">
-                    <MoveList
-                      plies={plies}
-                      moves={reviewMoves}
-                      nav={nav}
-                      reviewOf={explorer.reviewOf}
-                      onSelect={goto}
-                      onSelectVariation={gotoVariation}
-                      onDiscardVariation={backToGame}
-                    />
-                  </div>
-                  <div className="border-t border-line p-2">
-                    <ActionBar actions={actions} primary={primary} />
-                  </div>
                 </div>
-              )}
-            </aside>
-          )}
-        </div>
-      )}
-
-      {/* Phone bottom bar */}
-      {parsed && !isDesktop && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
-          <ActionBar actions={actions} primary={primary} />
+                <SummaryPanel game={game} review={review} plies={plies} onSelect={goto} onStart={() => goto(Math.max(0, nav.current))} />
+              </div>
+            ) : (
+              <div className="flex min-h-0 flex-1 flex-col">
+                <div className="px-3 pt-3 pb-2">
+                  <CoachBubble message={coach} fixed className="h-[150px]" />
+                </div>
+                {review && (
+                  <div className="px-4 pb-2">
+                    <EvalGraph evals={review.evals} moves={review.moves} plies={plies} current={nav.current} onSelect={goto} height={44} />
+                  </div>
+                )}
+                {settings.showEngineLines && (
+                  <div className="border-t border-line">
+                    <EngineLines analysis={analysis} onHover={setHoverUci} onPlay={playUci} />
+                  </div>
+                )}
+                <div className="min-h-0 flex-1 border-t border-line">
+                  <MoveList
+                    plies={plies}
+                    moves={reviewMoves}
+                    nav={nav}
+                    reviewOf={explorer.reviewOf}
+                    onSelect={goto}
+                    onSelectVariation={gotoVariation}
+                    onDiscardVariation={backToGame}
+                  />
+                </div>
+                <div className="border-t border-line p-2">
+                  <ActionBar actions={actions} primary={primary} />
+                </div>
+              </div>
+            )}
+          </aside>
         </div>
       )}
     </div>

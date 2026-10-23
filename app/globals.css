@@ -147,7 +147,8 @@
     border: 1px solid var(--color-line);
     border-radius: 0.5rem;
     padding: 0.625rem 0.875rem;
-    font-size: 0.9375rem;
+    /* 16px: smaller makes iOS zoom in on focus. */
+    font-size: 1rem;
     color: var(--color-fg);
     transition: border-color 120ms;
   }
@@ -272,4 +273,30 @@
 button,
 a {
   touch-action: manipulation;
+}
+
+/* Full-screen review on phones: no pull-to-refresh, no rubber-band scroll. */
+.app-locked,
+.app-locked body {
+  overscroll-behavior: none;
+  overflow: hidden;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  button {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* iOS zooms into inputs under 16px; never let it. */
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
 }

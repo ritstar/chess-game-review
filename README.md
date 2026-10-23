@@ -16,6 +16,16 @@ Load your games by username (or paste a PGN / Lichess link) and get:
 - Clocks, captured material, best-move and threat arrows, autoplay, five board themes (including wood) and keyboard navigation (← → Home End, F to flip, Space to autoplay, Esc to return to the game, Backspace to undo)
 - Shareable URLs (`?src=chesscom&u=<user>&g=<game>`). Finished reviews are cached in IndexedDB, so reopening a game is instant.
 
+## Built for phones
+
+Most reviews happen on a phone, so the phone layout is the primary design:
+
+- **Everything on one screen.** The review is a full-screen view that never scrolls: header, eval bar, a two-line coach, the board (sized to whatever height is left, so it's full width on most phones), the move strip and a thumb-reach action bar. Player bars appear when the screen is tall enough. Landscape puts the board beside the controls.
+- **Details on demand.** Tap the coach for the full explanation, the best line and the engine lines (tap a line to play it). Settings, flip, copy PGN and the summary live in the ⋯ menu. Both open as bottom sheets.
+- **Straight to your games.** The last player you looked up loads automatically; games you've reviewed show your accuracy in the list.
+- **Installable.** Add it to your home screen (Share → Add to Home Screen on iPhone, Install app on Android) and it opens full-screen like an app, with no browser toolbars.
+- Fast: a step paints in well under a frame's budget on a mid-range phone. No pull-to-refresh while reviewing, no zoom on input focus, and the notch and home indicator are respected.
+
 ## How the analysis works
 
 | Step | What happens |

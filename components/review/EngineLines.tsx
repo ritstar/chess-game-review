@@ -9,11 +9,14 @@ export const EngineLines = memo(function EngineLines({
   analysis: latest,
   onHover,
   onPlay,
+  onOpen,
 }: {
   analysis: PositionAnalysis | null;
   onHover?: (uci: string | null) => void;
   /** Play the line's first move on the board. */
   onPlay?: (uci: string) => void;
+  /** Phone variant: just the top line on one row; tapping it calls this. */
+  onOpen?: () => void;
 }) {
   // Lower priority than the board: a step paints the move first, then the lines.
   const analysis = useDeferredValue(latest);
@@ -31,6 +34,31 @@ export const EngineLines = memo(function EngineLines({
       }) ?? [],
     [analysis],
   );
+
+  if (onOpen) {
+    const top = views[0];
+    return (
+      <button type="button" onClick={onOpen} className="flex h-7 w-full items-center gap-2 px-3 text-left" aria-label="Engine lines">
+        {top ? (
+          <>
+            <span
+              className={cn(
+                'w-12 shrink-0 rounded px-1 py-0.5 text-center font-mono text-[11.5px] font-bold',
+                (top.view.score.mate !== undefined ? Math.sign(top.view.score.mate) : (top.view.score.cp ?? 0)) >= 0
+                  ? 'bg-[#f2f2f2] text-[#2a2825]'
+                  : 'bg-[#403d39] text-[#f2f2f2]',
+              )}
+            >
+              {formatScore(top.view.score)}
+            </span>
+            <span className="truncate font-mono text-[12px] text-muted">{top.short}</span>
+          </>
+        ) : (
+          <span className="text-[12px] text-subtle">{analysis && analysis.lines.length === 0 ? 'Game over' : 'Engine thinking…'}</span>
+        )}
+      </button>
+    );
+  }
 
   if (!analysis) {
     return (
