@@ -1,103 +1,76 @@
-# ♟ Chess.com Game Review — Local Replica
+# ♟ Game Review
 
-A pixel-perfect replica of **Chess.com's Game Review** feature, running entirely in your browser with a local Stockfish engine. Analyze any Chess.com player's games with move-by-move classifications, best-move arrows, and an interactive board.
+Free, private game review for **Chess.com** and **Lichess** games, powered by **Stockfish 17** running entirely in your browser.
 
-## Features
+Load your games by username (or paste a PGN / Lichess link) and get:
 
-- **Chess.com-style move classifications** — Brilliant `!!`, Great `!`, Best `★`, Excellent, Good, Inaccuracy `?!`, Mistake `?`, Blunder `??`, Book `📖`, Forced
-- **Two-pass Stockfish analysis** — Evaluates every position at depth 18, then classifies with full context
-- **Interactive chessboard** — Highlights played move squares with classification colors, shows best-move arrows when you deviate from the engine's top choice
-- **Paired move panel** — Displays moves as `1. e4 e5` with classification dots and move descriptions ("Best move ★", "Inaccuracy. Nf3 was best.")
-- **Evaluation bar** — Smooth animated bar showing White/Black advantage
-- **Player info bars** — Username, rating, and piece color above/below the board
-- **Classification summary** — Counts for each classification type after analysis
-- **Keyboard navigation** — Arrow keys, Home/End to navigate through moves
+- **Move classifications**: Brilliant `!!`, Great `!`, Best, Excellent, Good, Book, Forced, Inaccuracy `?!`, Mistake `?`, Miss, Blunder `??`
+- **Explanations in plain English**: "Allows a fork: Ne3 attacks your queen on d1 and rook on f1", "Missed mate in 2: …", "This leaves the bishop on f6 undefended", with the best line and the opponent's refutation
+- **Accuracy** for both players, plus average centipawn loss
+- **Evaluation graph** with the key moments marked; click or drag it to jump around
+- **Engine lines**: top 3 Stockfish lines for every position (hover one to see it on the board)
+- **Opening names** from a 3,800-line opening book; theory moves are marked as Book
+- Clocks, captured material, best-move arrows, autoplay, board themes and keyboard navigation
+- Shareable URLs (`?src=chesscom&u=<user>&g=<game>`). Finished reviews are cached in IndexedDB, so reopening a game is instant.
 
-## Classification Criteria
+## How the analysis works
 
-| Type | Symbol | Criteria |
-|---|---|---|
-| Brilliant | `!!` | Sacrifices material (≥2 pts net), is the best move, position not already winning |
-| Great | `!` | Best move where second-best is 150+ cp worse |
-| Best | `★` | Matches engine's top move |
-| Excellent | `✓` | CPL ≤ 10, not the engine's first choice |
-| Good | `+` | CPL 11–30 |
-| Inaccuracy | `?!` | CPL 31–100 or win-chance loss > 10% |
-| Mistake | `?` | CPL 101–250 or win-chance loss > 20% |
-| Blunder | `??` | CPL > 250 or win-chance loss > 30% |
-| Book | `📖` | Opening theory (first 8–12 ply) |
-| Forced | `—` | Only one legal move available |
+| Step | What happens |
+|---|---|
+| Engine | Each position is searched once with MultiPV 3 (Standard: depth 16, capped at 1.5 s). Positions are independent, so they are spread across a pool of single-threaded Stockfish workers (up to 4, one per spare core). A 40-move game usually finishes in 10–30 seconds. |
+| Win % | Scores are converted to winning chances with the logistic model Lichess fitted on real games. |
+| Classification | Based on **expected points lost** relative to the best move, following Chess.com's published bands: ≤2% Excellent, ≤5% Good, ≤10% Inaccuracy, ≤20% Mistake, >20% Blunder. A +0.5 → −1.0 swing is serious; +9 → +7.5 isn't. In positions that are already decided, small slips drop one band. |
+| Best / Great | **Best** means the engine's top move. **Great** means the top move when every alternative is at least a mistake; plain recaptures and grabbing a loose piece don't count. |
+| Brilliant | A sound **sacrifice**: the move leaves material the opponent can win by static exchange (legal-move SEE, so pins and checks count), it is still (near-)best, and you were not already completely winning. |
+| Miss | You failed to punish your opponent's mistake or blunder, but didn't make things worse than before it. |
+| Book | The position appears in the [Lichess openings](https://github.com/lichess-org/chess-openings) dataset, including transpositions. |
+| Accuracy | The Lichess accuracy method: per-move accuracy from win % lost, combined as a volatility-weighted mean and a harmonic mean. |
 
-## Tech Stack
+Explanations come from tactical checks on the engine lines: mates allowed or missed, forks, hanging pieces and material swings along the principal variation.
 
-- **Next.js 16** (App Router, Turbopack)
-- **React 19** + TypeScript
-- **Stockfish 17** (WASM, runs in a Web Worker)
-- **chess.js** for move parsing and validation
-- **react-chessboard** for the interactive board
-- **Tailwind CSS 4** for styling
+## Getting started
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- npm
-
-### Installation
+Requires Node.js 20+.
 
 ```bash
-git clone <repo-url>
-cd chess-game-review
 npm install
+npm run dev        # http://localhost:3000
 ```
 
-### Run Development Server
+| Script | |
+|---|---|
+| `npm run build` / `npm start` | Production build and server |
+| `npm run check` | Lint, typecheck and tests |
+| `npm test` | Unit tests plus an end-to-end test that runs the real Stockfish build in Node |
+| `npm run build:openings [dir]` | Regenerate `public/data/openings.json` from the Lichess openings TSVs (downloads them if no directory is given) |
 
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-### Production Build
-
-```bash
-npm run build
-npm start
-```
-
-## Usage
-
-1. Enter a **Chess.com username** in the top bar and click **Load Games**
-2. Select a game from the left sidebar
-3. Click **▶ Run Analysis** to start Stockfish evaluation
-4. Navigate moves with the **◀ ▶** buttons or **arrow keys**
-5. View classification icons, best-move arrows, and move descriptions
-
-## Project Structure
+## Project layout
 
 ```
-├── app/
-│   ├── page.tsx            # Main layout (sidebar + eval bar + board + move panel)
-│   ├── layout.tsx          # Root layout with metadata
-│   └── globals.css         # Chess.com dark theme + classification colors
-├── components/
-│   ├── ChessBoardArea.tsx  # Board with highlights, arrows, badges, navigation
-│   ├── MovePanel.tsx       # Paired moves, classification dots, move descriptions
-│   ├── EvaluationBar.tsx   # Animated eval bar
-│   └── GameList.tsx        # Sidebar game list with results
-├── hooks/
-│   └── useStockfish.ts     # Two-pass analysis hook (evaluate → classify)
-├── lib/
-│   ├── analysis.ts         # Move classification engine (CPL + win-chance)
-│   ├── stockfish.ts        # Stockfish WASM worker with MultiPV support
-│   ├── chess-api.ts        # Chess.com public API client
-│   └── utils.ts            # Tailwind merge utility
-└── public/
-    └── stockfish/          # Stockfish WASM + JS files
+app/                Next.js app router entry, layout and global styles
+components/
+  App.tsx           Home screen, game search and routing between views
+  home/             Game source picker and game list
+  review/           Board, eval bar and graph, move list, coach card, engine lines, summary
+hooks/
+  useGameReview.ts  Runs the engine pool, streams results and caches finished reviews
+lib/
+  engine/           UCI parsing and the Stockfish worker pool
+  analysis/         Classification, explanations, tactics (SEE, forks), accuracy, openings
+  games/            Chess.com / Lichess API clients and PGN parsing
+public/stockfish/   Stockfish 17.1 lite, single-threaded WASM build
+public/data/        Generated opening book
+tests/              Vitest suites
 ```
 
-## License
+## Deployment
 
-MIT
+The app is fully static apart from Next.js itself, so it deploys anywhere Next.js runs (Vercel, Netlify, a Node server). Security headers (CSP, frame and referrer policies) and cache headers for the engine binary are set in `next.config.ts`. The CSP allows outgoing requests only to `api.chess.com` and `lichess.org`.
+
+## Credits and licences
+
+- [Stockfish](https://stockfishchess.org) and [stockfish.js](https://github.com/nmrugg/stockfish.js), GPLv3
+- [chess.js](https://github.com/jhlywa/chess.js) and [react-chessboard](https://github.com/Clariity/react-chessboard)
+- Opening data: [lichess-org/chess-openings](https://github.com/lichess-org/chess-openings), CC0
+
+Not affiliated with Chess.com or Lichess.

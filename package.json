@@ -6,20 +6,21 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run lint && npm run typecheck && npm run test",
+    "build:openings": "node scripts/build-openings.mjs"
   },
   "dependencies": {
-    "@radix-ui/react-slot": "^1.2.4",
     "chess.js": "^1.4.0",
-    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "framer-motion": "^12.23.26",
     "lucide-react": "^0.561.0",
     "next": "16.0.10",
     "react": "19.2.1",
     "react-chessboard": "^5.8.6",
     "react-dom": "19.2.1",
-    "stockfish": "^17.1.0",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
@@ -30,6 +31,10 @@
     "eslint": "^9",
     "eslint-config-next": "16.0.10",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
