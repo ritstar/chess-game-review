@@ -5,7 +5,15 @@ import { useEffect, useRef, useState } from 'react';
 import { BOARD_THEMES, DEPTH_PRESETS, type AnalysisDepth, type BoardTheme, type Settings } from '@/lib/settings';
 import { cn } from '@/lib/utils';
 
-export function SettingsMenu({ settings, onChange }: { settings: Settings; onChange: (s: Settings) => void }) {
+export function SettingsMenu({
+  settings,
+  onChange,
+  placement = 'up',
+}: {
+  settings: Settings;
+  onChange: (s: Settings) => void;
+  placement?: 'up' | 'down';
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -22,7 +30,7 @@ export function SettingsMenu({ settings, onChange }: { settings: Settings; onCha
     };
   }, [open]);
 
-  const toggle = (key: 'showBestArrow' | 'showEngineLines', label: string) => (
+  const toggle = (key: 'showBestArrow' | 'showEngineLines' | 'sound' | 'haptics', label: string) => (
     <label className="flex cursor-pointer items-center justify-between gap-3 py-1.5 text-sm">
       {label}
       <input
@@ -46,7 +54,11 @@ export function SettingsMenu({ settings, onChange }: { settings: Settings; onCha
         <SettingsIcon size={18} />
       </button>
       {open && (
-        <div className="card absolute right-0 bottom-12 z-30 w-72 p-4 shadow-2xl" role="dialog" aria-label="Settings">
+        <div
+          className={cn('card absolute right-0 z-50 w-72 p-4 shadow-2xl', placement === 'up' ? 'bottom-12' : 'top-12')}
+          role="dialog"
+          aria-label="Settings"
+        >
           <p className="text-[11px] font-bold tracking-wider text-subtle uppercase">Analysis strength</p>
           <div className="mt-2 space-y-1">
             {(Object.keys(DEPTH_PRESETS) as AnalysisDepth[]).map((d) => (
@@ -88,6 +100,8 @@ export function SettingsMenu({ settings, onChange }: { settings: Settings; onCha
           <div className="mt-3 border-t border-line pt-2">
             {toggle('showBestArrow', 'Show best-move arrow')}
             {toggle('showEngineLines', 'Show engine lines')}
+            {toggle('sound', 'Sound')}
+            {toggle('haptics', 'Haptics (phones)')}
           </div>
         </div>
       )}

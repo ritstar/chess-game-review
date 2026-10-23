@@ -14,6 +14,7 @@ interface Job {
   resolve: (value: PositionAnalysis) => void;
   reject: (reason: Error) => void;
   watchdog: ReturnType<typeof setTimeout>;
+  onUpdate?: (partial: PositionAnalysis) => void;
 }
 
 const ENGINE_URL = '/stockfish/stockfish.js';
@@ -75,7 +76,10 @@ export class StockfishEngine {
       const parsed = parseInfoLine(line);
       if (parsed && parsed.rank <= job.limits.multiPv) {
         const prev = job.lines.get(parsed.rank);
-        if (!prev || parsed.depth >= prev.depth) job.lines.set(parsed.rank, parsed);
+        if (!prev || parsed.depth >= prev.depth) {
+          job.lines.set(parsed.rank, parsed);
+          job.onUpdate?.(this.collect(job));
+        }
       }
       return;
     }
@@ -93,7 +97,15 @@ export class StockfishEngine {
     return { fen: job.fen, depth, lines };
   }
 
-  async analyse(fen: string, limits: SearchLimits): Promise<PositionAnalysis> {
+  /**
+   * Search a position. `onUpdate` receives the lines found so far every time
+   * the engine reports progress, for live displays.
+   */
+  async analyse(
+    fen: string,
+    limits: SearchLimits,
+    onUpdate?: (partial: PositionAnalysis) => void,
+  ): Promise<PositionAnalysis> {
     await this.ready;
     if (this.stopping) await this.stopping;
     if (this.job) throw new Error('Engine is busy');
@@ -115,7 +127,7 @@ export class StockfishEngine {
         else reject(new Error('Engine did not respond.'));
       }, limits.moveTimeMs + 5000);
 
-      const job: Job = { fen, limits, lines: new Map(), resolve, reject, watchdog };
+      const job: Job = { fen, limits, lines: new Map(), resolve, reject, watchdog, onUpdate };
       this.job = job;
       this.worker.postMessage(`position fen ${fen}`);
       this.worker.postMessage(`go depth ${limits.depth} movetime ${limits.moveTimeMs}`);

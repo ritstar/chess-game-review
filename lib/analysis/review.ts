@@ -234,6 +234,67 @@ export function detectOpening(plies: PlyRecord[], book: OpeningBook) {
   return opening;
 }
 
+export interface ReviewMoveInput {
+  ply: PlyRecord;
+  index: number;
+  before: PositionAnalysis;
+  after: PositionAnalysis;
+  prevPly?: PlyRecord;
+  prevClassification?: Classification;
+  /** Evaluation before the opponent's previous move (for "miss"). */
+  prevMoverEval?: EvalPoint | null;
+  isBook: boolean;
+  book: OpeningBook;
+  perspective?: 'w' | 'b';
+}
+
+/**
+ * Classify and explain one move from the analyses of the positions before
+ * and after it. Shared by the game review and moves tried on the board.
+ */
+export function reviewMove(input: ReviewMoveInput): MoveReview {
+  const { ply, before, after, book } = input;
+  const evalBefore = evalPoint(before)!;
+  const evalAfter = evalPoint(after)!;
+  const moverWin = (e: EvalPoint) => (ply.color === 'w' ? e.win : 100 - e.win);
+  const classified = classifyMove({
+    ply,
+    before,
+    after,
+    prevPly: input.prevPly,
+    prevClassification: input.prevClassification,
+    prevMoverWin: input.prevMoverEval ? moverWin(input.prevMoverEval) : undefined,
+    isBook: input.isBook,
+  });
+
+  const best = before.lines[0];
+  const bestLine = best ? uciLineToSan(before.fen, best.pv, 10) : [];
+  const replyLine = after.lines[0] ? uciLineToSan(after.fen, after.lines[0].pv, 10) : [];
+
+  return {
+    index: input.index,
+    classification: classified.classification,
+    winLoss: classified.winLoss,
+    cpLoss: Math.min(1000, Math.max(0, Math.min(classified.bestCp, 1000) - Math.min(classified.playedCp, 1000))),
+    accuracy: moveAccuracy(moverWin(evalBefore), moverWin(evalAfter)),
+    bestUci: best?.pv[0],
+    bestSan: bestLine[0],
+    bestLine,
+    replyLine,
+    explanation: explainMove({
+      ply,
+      classified,
+      before,
+      after,
+      bestLine,
+      replyLine,
+      prevPly: input.prevPly,
+      perspective: input.perspective,
+      opening: classified.classification === 'book' ? lookupOpening(book, ply.fenAfter)?.name : undefined,
+    }),
+  };
+}
+
 /**
  * Build the review from whatever positions have been analysed so far. Safe to
  * call repeatedly while analysis streams in: moves are classified in game
@@ -246,6 +307,7 @@ export function buildReview(
   positions: (PositionAnalysis | null)[],
   book: OpeningBook,
   memo: Map<number, MoveReview> = new Map(),
+  perspective?: 'w' | 'b',
 ): GameReview {
   const evals = positions.map((p) => (p ? evalPoint(p) : null));
   const theory = bookMoves(plies, book);
@@ -263,44 +325,21 @@ export function buildReview(
       while (moves.length < plies.length) moves.push(null);
       break;
     }
-    const ply = plies[i];
     const prevMoverEval = i >= 1 ? evals[i - 1] : null;
-    const classified = classifyMove({
-      ply,
-      before,
-      after,
-      prevPly: plies[i - 1],
-      prevClassification: moves[i - 1]?.classification,
-      prevMoverWin: prevMoverEval ? (ply.color === 'w' ? prevMoverEval.win : 100 - prevMoverEval.win) : undefined,
-      isBook: theory[i],
-    });
-
-    const best = before.lines[0];
-    const bestLine = best ? uciLineToSan(before.fen, best.pv, 10) : [];
-    const replyLine = after.lines[0] ? uciLineToSan(after.fen, after.lines[0].pv, 10) : [];
-    const moverWin = (e: EvalPoint) => (ply.color === 'w' ? e.win : 100 - e.win);
-
-    moves.push({
-      index: i,
-      classification: classified.classification,
-      winLoss: classified.winLoss,
-      cpLoss: Math.min(1000, Math.max(0, Math.min(classified.bestCp, 1000) - Math.min(classified.playedCp, 1000))),
-      accuracy: moveAccuracy(moverWin(evals[i]!), moverWin(evals[i + 1]!)),
-      bestUci: best?.pv[0],
-      bestSan: bestLine[0],
-      bestLine,
-      replyLine,
-      explanation: explainMove({
-        ply,
-        classified,
+    moves.push(
+      reviewMove({
+        ply: plies[i],
+        index: i,
         before,
         after,
-        bestLine,
-        replyLine,
         prevPly: plies[i - 1],
-        opening: classified.classification === 'book' ? lookupOpening(book, ply.fenAfter)?.name : undefined,
+        prevClassification: moves[i - 1]?.classification,
+        prevMoverEval,
+        isBook: theory[i],
+        book,
+        perspective,
       }),
-    });
+    );
   }
 
   moves.forEach((m) => m && memo.set(m.index, m));

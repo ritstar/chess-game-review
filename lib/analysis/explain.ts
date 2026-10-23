@@ -2,7 +2,7 @@ import { Chess } from 'chess.js';
 import type { PositionAnalysis } from '@/lib/engine/uci';
 import type { PlyRecord } from '@/lib/games/pgn';
 import type { Classified } from './review';
-import { PIECE_NAME, detectFork, hangingPieces, materialSwing, uciLineToSan } from './tactics';
+import { PIECE_NAME, detectFork, detectThreats, hangingPieces, materialSwing, uciLineToSan, type Fork } from './tactics';
 import type { Explanation } from './types';
 
 export interface ExplainInput {
@@ -14,6 +14,8 @@ export interface ExplainInput {
   replyLine: string[];
   prevPly?: PlyRecord;
   opening?: string;
+  /** The player the review is written for ("you"); unknown for pasted PGNs. */
+  perspective?: 'w' | 'b';
 }
 
 /** Describe a win% (mover's POV) in words. */
@@ -49,9 +51,31 @@ const mateIn = (a: PositionAnalysis) => {
   return typeof s?.mate === 'number' && s.mate !== 0 ? s.mate : null;
 };
 
+/**
+ * Grammar for talking about the mover: "You keep…" when it's the reader's
+ * move, "Your opponent keeps…" when it isn't, "White keeps…" when we don't
+ * know who the reader is.
+ */
+export function voice(mover: 'w' | 'b', perspective?: 'w' | 'b') {
+  const isYou = perspective === mover;
+  const subject = isYou ? 'You' : perspective ? 'Your opponent' : mover === 'w' ? 'White' : 'Black';
+  const verb = (base: string, third: string) => `${subject} ${isYou ? base : third}`;
+  return {
+    /** "You go" / "Your opponent goes" */
+    verb,
+    /** Possessive for the mover's pieces. */
+    own: isYou ? 'your' : perspective ? 'their' : 'the',
+    /** Possessive for the other side's pieces. */
+    theirs: perspective && !isYou ? 'your' : 'the',
+  };
+}
+
+const pieceList = (fork: Fork, owner: string) => `${owner} ${fork.targets.map((t) => PIECE_NAME[t.piece]).join(' and ')}`;
+
 export function explainMove(input: ExplainInput): Explanation {
-  const { ply, classified, before, after, bestLine, replyLine } = input;
+  const { ply, classified, before, after, bestLine, replyLine, perspective } = input;
   const { classification, winBest, winPlayed } = classified;
+  const v = voice(ply.color, perspective);
   const san = ply.san;
   const best = bestLine[0];
   const bestText = best ? formatLine(before.fen, bestLine, 5) : '';
@@ -62,6 +86,28 @@ export function explainMove(input: ExplainInput): Explanation {
   const moverMate = mateIn(before);
   const opponentMate = mateIn(after);
   const deliveredMate = new Chess(ply.fenAfter).isCheckmate();
+
+  /** What the move itself does: forks, threats, winning material. */
+  const motif = (): string | null => {
+    const fork = detectFork(ply.fenBefore, ply.uci);
+    if (fork) return `Forks ${pieceList(fork, v.theirs)}.`;
+    // Measure from before the opponent's last move so recapturing isn't "winning material".
+    const base = input.prevPly ?? ply;
+    const line = input.prevPly ? [input.prevPly.uci, ply.uci] : [ply.uci];
+    const gain = materialSwing(base.fenBefore, [...line, ...(after.lines[0]?.pv ?? [])], ply.color, line.length + 3);
+    if (gain >= 2 && winPlayed < 97) {
+      return `Wins material${replyText ? `: ${formatLine(ply.fenBefore, [san, ...replyLine], 5)}` : ''}.`;
+    }
+    const threat = detectThreats(ply.fenBefore, ply.uci);
+    if (threat) {
+      const t = threat.targets[0];
+      const target = `${v.theirs} ${PIECE_NAME[t.piece]} on ${t.square}`;
+      return v.theirs === 'your'
+        ? `Attacks your ${PIECE_NAME[t.piece]} on ${t.square}, forcing it to move and gaining a tempo for your opponent.`
+        : `Attacks ${target}, gaining a tempo.`;
+    }
+    return null;
+  };
 
   switch (classification) {
     case 'book':
@@ -75,23 +121,19 @@ export function explainMove(input: ExplainInput): Explanation {
 
     case 'brilliant': {
       const s = classified.sacrifice;
-      if (s) {
-        details.push(
-          `Sacrifices the ${PIECE_NAME[s.piece]} on ${s.square} — the opponent can't profit from taking it.`,
-        );
-      }
+      if (s) details.push(`Sacrifices ${v.own} ${PIECE_NAME[s.piece]} on ${s.square}, and it can't be safely taken.`);
       if (replyText) details.push(`Best play continues ${replyText}.`);
-      details.push(`You keep ${describeWin(winPlayed)}.`);
+      details.push(`${v.verb('keep', 'keeps')} ${describeWin(winPlayed)}.`);
       return { headline: `${san} is brilliant!`, details };
     }
 
     case 'great': {
-      const fork = detectFork(ply.fenBefore, ply.uci);
-      if (fork) details.push(`Forks the ${fork.targets.map((t) => PIECE_NAME[t.piece]).join(' and ')}.`);
+      const m = motif();
+      if (m) details.push(m);
       const second = before.lines[1];
       const secondSan = second ? uciLineToSan(before.fen, second.pv, 1)[0] : undefined;
       details.push(
-        `The only move that keeps ${describeWin(winPlayed)}${secondSan ? ` — ${secondSan} was much weaker` : ''}.`,
+        `The only move that keeps ${describeWin(winPlayed)}${secondSan ? `. ${secondSan} was much weaker` : ''}.`,
       );
       if (replyText) details.push(`Play continues ${replyText}.`);
       return { headline: `${san} is a great move`, details };
@@ -108,18 +150,10 @@ export function explainMove(input: ExplainInput): Explanation {
             ? `${san} is excellent`
             : `${san} is a good move`;
       const playedMate = opponentMate !== null && opponentMate < 0 ? -opponentMate : null;
-      const fork = detectFork(ply.fenBefore, ply.uci);
-      if (playedMate) details.push(`Forces mate in ${playedMate}.`);
-      else if (fork) details.push(`Forks the ${fork.targets.map((t) => PIECE_NAME[t.piece]).join(' and ')}.`);
-      else {
-        // Measure from before the opponent's last move so recapturing isn't "winning material".
-        const base = input.prevPly ?? ply;
-        const line = input.prevPly ? [input.prevPly.uci, ply.uci] : [ply.uci];
-        const gain = materialSwing(base.fenBefore, [...line, ...(after.lines[0]?.pv ?? [])], ply.color, line.length + 3);
-        if (gain >= 2 && winPlayed < 97) details.push(`Wins material${replyText ? `: ${formatLine(ply.fenBefore, [san, ...replyLine], 5)}` : ''}.`);
-      }
+      const m = playedMate ? `Forces mate in ${playedMate}.` : motif();
+      if (m) details.push(m);
       if (classification !== 'best' && best) details.push(`${best} was slightly more precise.`);
-      details.push(`You have ${describeWin(winPlayed)}.`);
+      details.push(`${v.verb('have', 'has')} ${describeWin(winPlayed)}.`);
       return { headline, details };
     }
 
@@ -154,10 +188,10 @@ export function explainMove(input: ExplainInput): Explanation {
 
     if (fork && lossAfter <= -2) {
       const names = fork.targets.map((t) => `${PIECE_NAME[t.piece]} on ${t.square}`).join(' and ');
-      details.push(`Allows a fork: ${replyLine[0]} attacks your ${names}.`);
+      details.push(`Allows a fork: ${replyLine[0]} attacks ${v.own} ${names}.`);
     } else if (hanging && hangingTaken && lossAfter <= -2) {
-      const own = hanging.square === ply.to ? 'moves the' : 'leaves the';
-      details.push(`This ${own} ${PIECE_NAME[hanging.piece]} on ${hanging.square} undefended: ${replyText}.`);
+      const what = hanging.square === ply.to ? 'moves' : 'leaves';
+      details.push(`This ${what} ${v.own} ${PIECE_NAME[hanging.piece]} on ${hanging.square} undefended: ${replyText}.`);
     } else if (lossAfter <= -2) {
       details.push(`Loses material after ${replyText}.`);
     } else if (lossAfter <= -1 && gainBest - lossAfter >= 1) {
@@ -165,16 +199,21 @@ export function explainMove(input: ExplainInput): Explanation {
     } else if (gainBest - gainPlayed >= 2) {
       details.push(`Missed a chance to win material with ${best}.`);
     } else if (classification === 'miss') {
-      details.push(`Your opponent's last move gave you a chance that slipped away.`);
+      details.push(
+        v.own === 'your'
+          ? `Your opponent's last move gave you a chance that slipped away.`
+          : perspective
+            ? 'Your last move was a mistake, but it went unpunished.'
+            : 'The previous mistake went unpunished.',
+      );
     }
   }
 
   const from = describeWin(winBest);
   const to = describeWin(winPlayed);
-  if (from !== to) details.push(`You go from ${from} to ${to}.`);
-  else if (winPlayed >= 50) details.push(`You still have ${to}, but let some of it slip.`);
-  else details.push(`You're still in ${to}, and it just got harder to hold.`);
+  if (from !== to) details.push(`${v.verb('go', 'goes')} from ${from} to ${to}.`);
+  else if (winPlayed >= 50) details.push(`${v.verb('still have', 'still has')} ${to}, but ${v.own === 'your' ? 'let' : 'lets'} some of it slip.`);
+  else details.push(`${v.verb('are', 'is')} still in ${to}, and it just got harder to hold.`);
   if (best) details.push(`Best was ${bestText}.`);
   return { headline, details };
 }
-

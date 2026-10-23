@@ -190,3 +190,33 @@ export function detectFork(fen: string, uci: string): Fork | null {
   }
   return targets.length >= 2 ? { square: move.to, piece: attacker, targets } : null;
 }
+
+/**
+ * Pieces the moved piece now attacks that matter: worth more than the
+ * attacker, or undefended. A single target means a threat (often gaining a
+ * tempo); two or more is a fork, see {@link detectFork}.
+ */
+export function detectThreats(fen: string, uci: string): Fork | null {
+  const chess = new Chess(fen);
+  let move: Move;
+  try {
+    move = chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
+  } catch {
+    return null;
+  }
+  const attacker = move.promotion ?? move.piece;
+  const victim = move.color === 'w' ? 'b' : 'w';
+  // A piece that can simply be taken for free isn't threatening anything.
+  if (staticExchange(chess.fen(), move.to) >= PIECE_VALUE[attacker] && attacker !== 'p') return null;
+  const targets: Fork['targets'] = [];
+  for (const row of chess.board()) {
+    for (const p of row) {
+      if (!p || p.color !== victim || p.type === 'k') continue;
+      if (!chess.attackers(p.square, move.color).includes(move.to)) continue;
+      const valuable = PIECE_VALUE[p.type] > PIECE_VALUE[attacker];
+      const loose = !chess.isAttacked(p.square, victim) && p.type !== 'p';
+      if (valuable || loose) targets.push({ square: p.square, piece: p.type });
+    }
+  }
+  return targets.length ? { square: move.to, piece: attacker, targets } : null;
+}

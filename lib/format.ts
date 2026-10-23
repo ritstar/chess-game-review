@@ -40,3 +40,10 @@ export function materialInfo(fen: string) {
 }
 
 export const PIECE_GLYPH: Record<string, string> = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' };
+
+const FIGURINE: Record<string, string> = { K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘' };
+
+/** SAN with piece letters as figurines: "Nf3" → "♘f3", "e8=Q" → "e8=♕". */
+export function figurine(san: string): string {
+  return san.replace(/^[KQRBN]/, (p) => FIGURINE[p]).replace(/=([QRBN])/, (_, p: string) => `=${FIGURINE[p]}`);
+}

@@ -102,3 +102,59 @@ export function hash(text: string): string {
   }
   return (h >>> 0).toString(36);
 }
+
+/**
+ * Play a move from `fen` and describe it like a game ply. Returns null when
+ * the move is illegal. Used for moves the user tries on the board.
+ */
+export function makePly(
+  fen: string,
+  move: string | { from: string; to: string; promotion?: string },
+  index = 0,
+): PlyRecord | null {
+  const chess = new Chess(fen);
+  try {
+    const m = chess.move(move);
+    return {
+      index,
+      san: m.san,
+      uci: m.lan,
+      color: m.color,
+      moveNumber: Number(m.before.split(' ')[5]),
+      from: m.from,
+      to: m.to,
+      captured: m.captured,
+      piece: m.piece,
+      fenBefore: m.before,
+      fenAfter: m.after,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Plies for a UCI line starting at `fen`, stopping at the first illegal move. */
+export function pliesFromUci(fen: string, uci: string[]): PlyRecord[] {
+  const out: PlyRecord[] = [];
+  let current = fen;
+  for (const m of uci) {
+    const ply = makePly(current, { from: m.slice(0, 2), to: m.slice(2, 4), promotion: m[4] }, out.length);
+    if (!ply) break;
+    out.push(ply);
+    current = ply.fenAfter;
+  }
+  return out;
+}
+
+/** Plies for a SAN line starting at `fen`, stopping at the first illegal move. */
+export function pliesFromSan(fen: string, san: string[]): PlyRecord[] {
+  const out: PlyRecord[] = [];
+  let current = fen;
+  for (const m of san) {
+    const ply = makePly(current, m, out.length);
+    if (!ply) break;
+    out.push(ply);
+    current = ply.fenAfter;
+  }
+  return out;
+}

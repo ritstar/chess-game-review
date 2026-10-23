@@ -91,7 +91,7 @@ export function SummaryPanel({ game, review, plies, onSelect, onStart }: Summary
         </div>
       )}
 
-      <button type="button" className="btn btn-primary w-full py-3 text-[15px]" onClick={onStart}>
+      <button type="button" className="btn btn-primary hidden w-full py-3 text-[15px] lg:inline-flex" onClick={onStart}>
         Start review
       </button>
     </div>

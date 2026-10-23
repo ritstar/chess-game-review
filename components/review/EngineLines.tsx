@@ -4,7 +4,16 @@ import { formatScore, type PositionAnalysis } from '@/lib/engine/uci';
 import { cn } from '@/lib/utils';
 
 /** The engine's top candidate lines for the position on the board. */
-export function EngineLines({ analysis, onHover }: { analysis: PositionAnalysis | null; onHover?: (uci: string | null) => void }) {
+export function EngineLines({
+  analysis,
+  onHover,
+  onPlay,
+}: {
+  analysis: PositionAnalysis | null;
+  onHover?: (uci: string | null) => void;
+  /** Play the line's first move on the board. */
+  onPlay?: (uci: string) => void;
+}) {
   if (!analysis) {
     return (
       <div className="space-y-1.5 px-3 py-2">
@@ -24,10 +33,13 @@ export function EngineLines({ analysis, onHover }: { analysis: PositionAnalysis 
         const view = lineView(analysis, line, 10);
         const cp = view.score.mate !== undefined ? Math.sign(view.score.mate) : (view.score.cp ?? 0);
         return (
-          <div
+          <button
+            type="button"
             key={line.rank}
-            className="flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-surface-2"
+            className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-surface-2"
             onMouseEnter={() => onHover?.(line.pv[0] ?? null)}
+            onClick={() => line.pv[0] && onPlay?.(line.pv[0])}
+            title="Play this move"
           >
             <span
               className={cn(
@@ -40,7 +52,7 @@ export function EngineLines({ analysis, onHover }: { analysis: PositionAnalysis 
             <span className="truncate font-mono text-[12.5px] text-muted" title={formatLine(analysis.fen, view.san, 20)}>
               {formatLine(analysis.fen, view.san, 10)}
             </span>
-          </div>
+          </button>
         );
       })}
       <p className="px-1.5 pt-0.5 text-[11px] text-subtle">Stockfish 17 · depth {analysis.depth}</p>

@@ -8,6 +8,7 @@ import { ReviewScreen } from '@/components/review/ReviewScreen';
 import { gameFromPgn } from '@/lib/games/pgn';
 import { SourceError, fetchGames, fetchLichessGameByUrl } from '@/lib/games/sources';
 import type { GameRecord } from '@/lib/games/types';
+import { cn } from '@/lib/utils';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from '@/lib/settings';
 
 const RECENT_KEY = 'chess-review:recent';
@@ -158,7 +159,7 @@ export function App() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-40 border-b border-line/70 bg-bg/85 backdrop-blur">
+      <header className={cn('sticky top-0 z-40 border-b border-line/70 bg-bg/85 backdrop-blur', game && 'hidden lg:block')}>
         <div className="mx-auto flex h-14 max-w-[1320px] items-center gap-3 px-4">
           <button type="button" onClick={() => game && closeGame()} className="flex items-center gap-2.5" aria-label="Home">
             <Logo />
@@ -241,7 +242,7 @@ export function App() {
         )}
       </main>
 
-      <footer className="border-t border-line/70 py-5 text-center text-[12px] text-subtle">
+      <footer className={cn('border-t border-line/70 py-5 text-center text-[12px] text-subtle', game && 'hidden lg:block')}>
         Analysis by{' '}
         <a className="underline hover:text-muted" href="https://stockfishchess.org" target="_blank" rel="noreferrer">
           Stockfish

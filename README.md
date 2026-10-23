@@ -8,9 +8,12 @@ Load your games by username (or paste a PGN / Lichess link) and get:
 - **Explanations in plain English**: "Allows a fork: Ne3 attacks your queen on d1 and rook on f1", "Missed mate in 2: …", "This leaves the bishop on f6 undefended", with the best line and the opponent's refutation
 - **Accuracy** for both players, plus average centipawn loss
 - **Evaluation graph** with the key moments marked; click or drag it to jump around
-- **Engine lines**: top 3 Stockfish lines for every position (hover one to see it on the board)
+- **Explore your own moves**: drag a piece or tap a piece and then a square, at any point in the review. A live Stockfish instance rates the move you tried (Best, Inaccuracy, Blunder and so on) and explains it. Lines appear in the move list, and **Back to game** (or Esc) returns you to exactly where you left the game. Undo takes back one move.
+- **Chess.com-style review flow**: a coach speech bubble, a horizontal eval bar on phones, a swipeable move strip, and a bottom bar with **Retry** (find a better move than your mistake), **Show** (play out the engine's follow-up), **Best** (see the best move instead) and **Next**
+- **Sound and haptics**: distinct sounds for moves, captures, checks, castling, promotion and illegal moves (generated in code, no audio files). Vibration works on Android; recent iPhones get a light tap through an unofficial Safari workaround. Both can be switched off in settings.
+- **Engine lines**: top 3 Stockfish lines for every position (hover one to see it on the board, click it to play it)
 - **Opening names** from a 3,800-line opening book; theory moves are marked as Book
-- Clocks, captured material, best-move arrows, autoplay, board themes and keyboard navigation
+- Clocks, captured material, best-move and threat arrows, autoplay, five board themes (including wood) and keyboard navigation (← → Home End, F to flip, Space to autoplay, Esc to return to the game, Backspace to undo)
 - Shareable URLs (`?src=chesscom&u=<user>&g=<game>`). Finished reviews are cached in IndexedDB, so reopening a game is instant.
 
 ## How the analysis works
@@ -54,10 +57,13 @@ components/
   review/           Board, eval bar and graph, move list, coach card, engine lines, summary
 hooks/
   useGameReview.ts  Runs the engine pool, streams results and caches finished reviews
+  useExplorer.ts    Live engine and ratings for moves tried on the board
 lib/
   engine/           UCI parsing and the Stockfish worker pool
   analysis/         Classification, explanations, tactics (SEE, forks), accuracy, openings
   games/            Chess.com / Lichess API clients and PGN parsing
+  review/           Board navigation state (game moves and explored lines)
+  sound.ts, haptics.ts  Board feedback
 public/stockfish/   Stockfish 17.1 lite, single-threaded WASM build
 public/data/        Generated opening book
 tests/              Vitest suites

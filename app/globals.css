@@ -236,3 +236,18 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Figurine notation: prefer fonts with good chess glyphs, never emoji. */
+.figurine {
+  font-family: var(--font-sans), 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'DejaVu Sans', sans-serif;
+  font-variant-emoji: text;
+}
+
+/* Horizontal move strip: hide the scrollbar but keep it scrollable. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
