@@ -13,7 +13,7 @@ export interface CoachMessage {
   details?: string[];
   evaluation?: EvalPoint | null;
   loading?: boolean;
-  /** Small pill above the headline, e.g. "Your move" in analysis. */
+  /** Small label on the bubble's edge, e.g. "Analysis". */
   tag?: string;
   tone?: 'default' | 'success' | 'error';
 }
@@ -45,15 +45,22 @@ function Headline({ san, headline }: { san?: string; headline: string }) {
   return <>{headline}</>;
 }
 
-/** The coach's speech bubble: what happened on the last move, in words. */
-export function CoachBubble({ message, className }: { message: CoachMessage; className?: string }) {
+/**
+ * The coach's speech bubble: what happened on the last move, in words.
+ *
+ * With `fixed`, the bubble fills the height its parent gives it and long
+ * comments scroll inside it, so content changes never move what's below
+ * (on phones, the board).
+ */
+export function CoachBubble({ message, className, fixed = false }: { message: CoachMessage; className?: string; fixed?: boolean }) {
   const { icon, san, headline, details = [], evaluation, loading, tag, tone = 'default' } = message;
   return (
     <div className={cn('flex items-start gap-2.5', className)}>
       <CoachAvatar className="mt-1 size-12 sm:size-14" />
       <div
         className={cn(
-          'relative min-h-[84px] min-w-0 flex-1 rounded-2xl bg-[#fbfbf9] px-3.5 py-3 text-[#2b2926] shadow-[0_6px_20px_rgba(0,0,0,.25)]',
+          'relative min-w-0 flex-1 rounded-2xl bg-[#fbfbf9] px-3.5 py-3 text-[#2b2926] shadow-[0_6px_20px_rgba(0,0,0,.25)]',
+          fixed ? 'flex h-full flex-col' : 'min-h-[84px]',
           tone === 'success' && 'ring-2 ring-[var(--color-best)]',
           tone === 'error' && 'ring-2 ring-[var(--color-mistake)]',
         )}
@@ -61,15 +68,16 @@ export function CoachBubble({ message, className }: { message: CoachMessage; cla
       >
         {/* Tail pointing at the avatar */}
         <span className="absolute top-6 -left-1.5 size-3.5 rotate-45 rounded-[3px] bg-[#fbfbf9]" aria-hidden />
+        {/* The tag sits on the bubble's edge so it never adds height. */}
         {tag && (
-          <span className="mb-1 inline-block rounded-full bg-[#ecebe6] px-2 py-0.5 text-[11px] font-bold tracking-wide text-[#6b6862] uppercase">
+          <span className="absolute -top-2.5 left-3.5 rounded-full bg-[#3b3834] px-2 py-0.5 text-[10px] leading-none font-bold tracking-wide text-[#ecebe8] uppercase shadow">
             {tag}
           </span>
         )}
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex shrink-0 items-start justify-between gap-2">
           <p className="flex min-w-0 items-center gap-2 text-[17px] leading-snug font-extrabold">
             {icon && <ClassificationIcon classification={icon} size={26} className="shrink-0" />}
-            <span className="min-w-0">
+            <span className={cn('min-w-0', fixed && 'line-clamp-2')}>
               <Headline san={san} headline={headline} />
             </span>
           </p>
@@ -86,7 +94,12 @@ export function CoachBubble({ message, className }: { message: CoachMessage; cla
           </div>
         ) : (
           details.length > 0 && (
-            <div className="mt-1.5 space-y-1">
+            <div
+              className={cn(
+                'mt-1.5 space-y-1',
+                fixed && 'scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain pb-1 [mask-image:linear-gradient(to_bottom,black_82%,transparent)]',
+              )}
+            >
               <p className="text-[15px] leading-snug">{details[0]}</p>
               {details.slice(1).map((d, i) => (
                 <p key={i} className="text-[13px] leading-snug text-[#6b6862]">

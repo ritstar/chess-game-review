@@ -598,13 +598,13 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
             </a>
           )}
         </div>
+        {/* Overlays the header's bottom edge so it never shifts the board. */}
+        {analyzing && (
+          <div className="absolute inset-x-0 -bottom-px h-0.5 bg-surface-3 lg:hidden" aria-hidden>
+            <div className="h-full bg-accent transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
+          </div>
+        )}
       </header>
-
-      {analyzing && (
-        <div className="h-0.5 bg-surface-3 lg:hidden" aria-hidden>
-          <div className="h-full bg-accent transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
-        </div>
-      )}
 
       {error && status === 'error' && (
         <div className="m-3 flex items-center justify-between gap-3 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm lg:mx-0">
@@ -623,7 +623,8 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
           <section className={cn('flex-col lg:flex', mode === 'summary' ? 'hidden' : 'flex')} aria-label="Board">
             <div className="space-y-3 px-3 pt-3 pb-1 lg:hidden">
               <HorizontalEvalBar evaluation={evaluation} />
-              <CoachBubble message={coach} />
+              {/* Fixed height: changing commentary must not move the board. */}
+              <CoachBubble message={coach} fixed className="h-[138px]" />
             </div>
 
             <div className="mx-auto px-3 lg:mx-0 lg:px-0 lg:pl-[1.75rem]">{strip(topColor)}</div>
@@ -749,7 +750,7 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
             ) : (
               <div className="flex min-h-0 flex-1 flex-col">
                 <div className="px-3 pt-3 pb-2">
-                  <CoachBubble message={coach} />
+                  <CoachBubble message={coach} fixed className="h-[150px]" />
                 </div>
                 {review && (
                   <div className="px-4 pb-2">
