@@ -4,7 +4,7 @@ import { Chess, type Square } from 'chess.js';
 import { memo, useMemo, useRef, useState } from 'react';
 import { defaultPieces } from 'react-chessboard';
 import { ClassificationIcon } from '@/components/ClassificationIcon';
-import type { Classification } from '@/lib/analysis/types';
+import { CLASSIFICATION_LABEL, type Classification } from '@/lib/analysis/types';
 import type { Motion } from '@/lib/review/navigation';
 import { BOARD_THEMES, type BoardTheme } from '@/lib/settings';
 import { cn } from '@/lib/utils';
@@ -44,6 +44,8 @@ interface BoardProps {
 }
 
 const FILES = 'abcdefgh';
+/** Ratings that get the big "pop" on the board, as in Chess.com's review. */
+const CELEBRATE = new Set<Classification>(['brilliant', 'great', 'best', 'excellent']);
 const DRAG_THRESHOLD_PX = 4;
 const USER_ARROW = 'rgba(255, 170, 0, 0.8)';
 
@@ -423,8 +425,27 @@ export function Board({
       )}
 
       {lastMove && classification && (
-        <div className="pointer-events-none absolute z-20" style={place(lastMove.to, orientation)}>
-          <div className="badge-pop absolute top-[3%] right-[3%] w-[38%]" key={fen}>
+        // Keyed by position and rating so the animation plays once per move
+        // (or when a tried move's rating arrives).
+        <div key={`${fen}:${classification}`} className="pointer-events-none absolute z-20" style={place(lastMove.to, orientation)}>
+          {CELEBRATE.has(classification) && (
+            <>
+              {/* Chess.com-style pop: the square flashes, a big icon bursts over the piece with a label, then settles into the corner badge. */}
+              <div className="celebrate-square absolute inset-0" style={{ background: `var(--color-${classification})` }} />
+              <div className="celebrate-icon absolute inset-0 flex items-center justify-center">
+                <div className="aspect-square w-[68%]">
+                  <ClassificationIcon classification={classification} size={48} className="h-full! w-full! shadow-lg" />
+                </div>
+              </div>
+              <span
+                className="celebrate-label absolute -top-[30%] left-1/2 rounded-full bg-white px-2.5 py-0.5 text-[clamp(11px,3.4vw,15px)] font-extrabold whitespace-nowrap shadow-md"
+                style={{ color: `var(--color-${classification})` }}
+              >
+                {CLASSIFICATION_LABEL[classification]}
+              </span>
+            </>
+          )}
+          <div className={cn('absolute top-[3%] right-[3%] w-[38%]', CELEBRATE.has(classification) ? 'badge-after-celebrate' : 'badge-pop')}>
             <ClassificationIcon classification={classification} size={26} className="aspect-square h-auto! w-full!" />
           </div>
         </div>

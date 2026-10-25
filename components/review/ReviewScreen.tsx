@@ -304,6 +304,12 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
     if (!ply) return;
     if (settings.sound) playSound(soundForSan(ply.san));
     if (settings.haptics && byUser) haptic(hapticForSan(ply.san));
+    // A little extra for great finds, timed with the board pop.
+    const c = moveReview?.classification;
+    if (c === 'great' || c === 'brilliant') {
+      if (settings.sound) setTimeout(() => playSound(c), 120);
+      if (settings.haptics && byUser) setTimeout(() => haptic('success'), 120);
+    }
     // Only the position change matters here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moveKey]);

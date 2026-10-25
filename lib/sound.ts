@@ -4,7 +4,18 @@
  * noise burst plus a low thump), varied per event.
  */
 
-export type SoundName = 'move' | 'capture' | 'check' | 'castle' | 'promote' | 'illegal' | 'gameEnd' | 'correct' | 'wrong';
+export type SoundName =
+  | 'move'
+  | 'capture'
+  | 'check'
+  | 'castle'
+  | 'promote'
+  | 'illegal'
+  | 'gameEnd'
+  | 'correct'
+  | 'wrong'
+  | 'great'
+  | 'brilliant';
 
 let ctx: AudioContext | null = null;
 let noise: AudioBuffer | null = null;
@@ -112,6 +123,14 @@ const SOUNDS: Record<SoundName, (ac: AudioContext, t: number) => void> = {
   correct: (ac, t) => {
     tone(ac, t, 784, { gain: 0.14, decay: 0.18 });
     tone(ac, t + 0.1, 1175, { gain: 0.14, decay: 0.35 });
+  },
+  // Soft sparkle under the board pop for great and brilliant moves.
+  great: (ac, t) => {
+    tone(ac, t, 1046, { gain: 0.07, decay: 0.25 });
+    tone(ac, t + 0.08, 1568, { gain: 0.07, decay: 0.4 });
+  },
+  brilliant: (ac, t) => {
+    [1046, 1318, 1568, 2093].forEach((f, i) => tone(ac, t + i * 0.06, f, { gain: 0.06, decay: 0.45 }));
   },
   wrong: (ac, t) => {
     tone(ac, t, 392, { type: 'triangle', gain: 0.14, decay: 0.18 });
