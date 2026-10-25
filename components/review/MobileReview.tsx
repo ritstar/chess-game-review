@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, BarChart3, Copy, Eye, ExternalLink, MoreHorizontal, Repeat2, Star } from 'lucide-react';
+import { ArrowLeft, BarChart3, Copy, Eye, ExternalLink, Github, MoreHorizontal, Repeat2, Star } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ClassificationIcon } from '@/components/ClassificationIcon';
 import { Sheet } from '@/components/ui/Sheet';
@@ -13,6 +13,7 @@ import type { PlyRecord } from '@/lib/games/pgn';
 import type { GameRecord } from '@/lib/games/types';
 import type { NavState } from '@/lib/review/navigation';
 import type { Settings } from '@/lib/settings';
+import { AUTHOR, REPO_URL } from '@/lib/site';
 import { cn } from '@/lib/utils';
 import { ActionBar, type Action, type PrimaryAction } from './ActionBar';
 import { CoachBubble, type CoachMessage } from './CoachBubble';
@@ -353,6 +354,9 @@ function MenuContent(p: MobileReviewProps & { onDone: () => void }) {
         )}
       </div>
       <SettingsFields settings={p.settings} onChange={p.onSettingsChange} />
+      <a href={REPO_URL} target="_blank" rel="noreferrer" className="mt-4 flex items-center justify-center gap-1.5 text-[13px] text-subtle">
+        <Github size={14} /> github.com/{AUTHOR}
+      </a>
     </div>
   );
 }

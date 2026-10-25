@@ -1,22 +1,34 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
+import { AUTHOR, AUTHOR_URL, SITE_NAME, SITE_URL } from '@/lib/site';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: 'Game Review — free Stockfish analysis for Chess.com & Lichess',
     template: '%s · Game Review',
   },
   description:
     'Review your Chess.com and Lichess games with Stockfish 17, right in your browser. Move-by-move classifications, accuracy, key moments and plain-English explanations — free and private.',
-  applicationName: 'Game Review',
+  applicationName: SITE_NAME,
+  authors: [{ name: AUTHOR, url: AUTHOR_URL }],
+  creator: AUTHOR,
+  alternates: { canonical: '/' },
   keywords: ['chess', 'game review', 'stockfish', 'chess.com', 'lichess', 'analysis', 'accuracy'],
   openGraph: {
-    title: 'Game Review',
+    title: SITE_NAME,
     description: 'Free Stockfish game review for Chess.com and Lichess games.',
     type: 'website',
+    url: '/',
+    siteName: SITE_NAME,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_NAME,
+    description: 'Free Stockfish game review for Chess.com and Lichess games.',
   },
   // Installable to the home screen: opens full-screen without browser bars.
   appleWebApp: { capable: true, title: 'Game Review', statusBarStyle: 'black-translucent' },

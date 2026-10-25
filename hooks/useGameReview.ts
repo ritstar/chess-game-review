@@ -68,10 +68,7 @@ export function useGameReview(game: GameRecord | null, depth: AnalysisDepth, run
 
   useEffect(() => {
     const plies = parsed.game?.plies;
-    if (!game || !parsed.game || !plies) {
-      setState({ review: null, status: parsed.error ? 'error' : 'idle', progress: 0, error: parsed.error, fromCache: false });
-      return;
-    }
+    if (!game || !parsed.game || !plies) return;
 
     const controller = new AbortController();
     const fens = [parsed.game.startFen, ...plies.map((p) => p.fenAfter)];
@@ -148,5 +145,8 @@ export function useGameReview(game: GameRecord | null, depth: AnalysisDepth, run
     return () => controller.abort();
   }, [game, parsed, depth, runId]);
 
+  if (!game || !parsed.game) {
+    return { parsed: null, review: null, status: parsed.error ? 'error' : 'idle', progress: 0, error: parsed.error, fromCache: false };
+  }
   return { parsed: parsed.game, ...state };
 }

@@ -18,7 +18,7 @@ import {
   Star,
   Undo2,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Chess, DEFAULT_POSITION } from 'chess.js';
 import { useExplorer } from '@/hooks/useExplorer';
 import { useGameReview } from '@/hooks/useGameReview';
@@ -317,18 +317,20 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
   /* ── Keyboard ─────────────────────────────────────────────────────── */
 
   const keyActions = useRef<Record<string, () => void>>({});
-  keyActions.current = {
-    ArrowRight: () => step(1),
-    ArrowLeft: () => step(-1),
-    ArrowUp: () => goto(-1),
-    Home: () => goto(-1),
-    ArrowDown: () => goto(last),
-    End: () => goto(last),
-    f: () => setFlipped((v) => !v),
-    ' ': () => setPlaying((p) => !p),
-    Escape: () => (retry || isVar ? backToGame() : undefined),
-    Backspace: () => (isVar ? undo() : undefined),
-  };
+  useLayoutEffect(() => {
+    keyActions.current = {
+      ArrowRight: () => step(1),
+      ArrowLeft: () => step(-1),
+      ArrowUp: () => goto(-1),
+      Home: () => goto(-1),
+      ArrowDown: () => goto(last),
+      End: () => goto(last),
+      f: () => setFlipped((v) => !v),
+      ' ': () => setPlaying((p) => !p),
+      Escape: () => (retry || isVar ? backToGame() : undefined),
+      Backspace: () => (isVar ? undo() : undefined),
+    };
+  });
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;

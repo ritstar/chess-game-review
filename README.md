@@ -81,7 +81,13 @@ tests/              Vitest suites
 
 ## Deployment
 
-The app is fully static apart from Next.js itself, so it deploys anywhere Next.js runs (Vercel, Netlify, a Node server). Security headers (CSP, frame and referrer policies) and cache headers for the engine binary are set in `next.config.ts`. The CSP allows outgoing requests only to `api.chess.com` and `lichess.org`.
+Live at **https://chess-game-review.vercel.app**. Every push to `main` deploys to Vercel, and CI runs lint, typecheck, tests and a production build.
+
+The app is fully static apart from Next.js itself, so it deploys anywhere Next.js runs (Vercel, Netlify, a Node server). Security headers (CSP, frame and referrer policies) and cache headers for the engine binary are set in `next.config.ts`. The CSP allows outgoing requests only to `api.chess.com` and `lichess.org`. Set `NEXT_PUBLIC_SITE_URL` if you host it on another domain; it is used for canonical URLs, the sitemap and link previews.
+
+## Author
+
+Made by [@ritstar](https://github.com/ritstar). Source: [github.com/ritstar/chess-game-review](https://github.com/ritstar/chess-game-review).
 
 ## Credits and licences
 

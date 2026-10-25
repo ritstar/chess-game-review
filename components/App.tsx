@@ -1,6 +1,6 @@
 'use client';
 
-import { Cpu, Lock, RefreshCw, Sparkles } from 'lucide-react';
+import { Cpu, Github, Lock, RefreshCw, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GameList, GameListSkeleton } from '@/components/home/GameList';
 import { GameLoader, type LoaderSource, type RecentSearch } from '@/components/home/GameLoader';
@@ -11,6 +11,7 @@ import { SourceError, fetchGames, fetchLichessGameByUrl } from '@/lib/games/sour
 import type { GameRecord } from '@/lib/games/types';
 import { cn } from '@/lib/utils';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from '@/lib/settings';
+import { AUTHOR, AUTHOR_URL, REPO_URL } from '@/lib/site';
 
 const RECENT_KEY = 'chess-review:recent';
 
@@ -95,6 +96,9 @@ export function App() {
 
   // Restore settings, recent searches and any search/game from the URL.
   useEffect(() => {
+    // localStorage only exists in the browser, so this can't be initial state
+    // without a hydration mismatch on the prerendered page.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSettings(loadSettings());
     setRecent(readRecent());
     const params = new URLSearchParams(window.location.search);
@@ -298,6 +302,15 @@ export function App() {
           Lichess openings
         </a>{' '}
         dataset. Not affiliated with Chess.com or Lichess.
+        <div className="mt-3 flex items-center justify-center gap-3 text-[13px] text-muted">
+          <a className="inline-flex items-center gap-1.5 hover:text-fg" href={AUTHOR_URL} target="_blank" rel="noreferrer">
+            <Github size={15} /> Made by @{AUTHOR}
+          </a>
+          <span aria-hidden>·</span>
+          <a className="underline hover:text-fg" href={REPO_URL} target="_blank" rel="noreferrer">
+            Source code
+          </a>
+        </div>
       </footer>
     </div>
   );
