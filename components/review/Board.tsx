@@ -45,7 +45,7 @@ interface BoardProps {
 
 const FILES = 'abcdefgh';
 /** Ratings that get the big "pop" on the board, as in Chess.com's review. */
-const CELEBRATE = new Set<Classification>(['brilliant', 'great', 'best', 'excellent']);
+const CELEBRATE = new Set<Classification>(['brilliant', 'great', 'excellent']);
 const DRAG_THRESHOLD_PX = 4;
 const USER_ARROW = 'rgba(255, 170, 0, 0.8)';
 
