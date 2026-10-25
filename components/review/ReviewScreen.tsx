@@ -75,7 +75,7 @@ function summaryMessage(game: GameRecord, review: GameReview | null, analyzing: 
     return {
       headline: analyzing ? `Analyzing your game… ${Math.round(progress * 100)}%` : 'Getting ready…',
       details: ['Stockfish is checking every move. You can start stepping through already.'],
-      loading: !review,
+      progress: analyzing ? progress : undefined,
     };
   }
   const me = game.perspective;

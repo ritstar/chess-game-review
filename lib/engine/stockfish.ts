@@ -18,6 +18,25 @@ interface Job {
 }
 
 const ENGINE_URL = '/stockfish/stockfish.js';
+const WASM_URL = '/stockfish/stockfish.wasm';
+
+let wasmPromise: Promise<unknown> | null = null;
+
+/**
+ * Download the engine binary (~5.6 MB) into the HTTP cache once. Workers
+ * started together would otherwise each fetch it before the cache fills,
+ * which costs real money on mobile data. Safe to call early (e.g. while the
+ * user browses their games) to make the first review start sooner.
+ */
+export function prefetchEngine(): Promise<unknown> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  wasmPromise ??= fetch(WASM_URL)
+    .then((r) => r.arrayBuffer())
+    .catch(() => {
+      wasmPromise = null;
+    });
+  return wasmPromise;
+}
 
 export class AbortError extends Error {
   constructor() {
@@ -39,7 +58,7 @@ export class StockfishEngine {
   private stopping: Promise<void> | null = null;
   private onStopped: (() => void) | null = null;
 
-  constructor(hashMb = 32) {
+  constructor(hashMb = 16) {
     this.worker = new Worker(ENGINE_URL);
     this.ready = new Promise((resolve, reject) => {
       const onBoot = (e: MessageEvent) => {
@@ -179,7 +198,9 @@ export class EnginePool {
 
   constructor(private size = defaultPoolSize()) {}
 
-  private ensure() {
+  private async ensure() {
+    if (this.engines.length >= this.size) return;
+    await prefetchEngine();
     while (this.engines.length < this.size) this.engines.push(new StockfishEngine());
   }
 
@@ -193,7 +214,8 @@ export class EnginePool {
     onResult: (index: number, result: PositionAnalysis) => void,
     signal?: AbortSignal,
   ): Promise<PositionAnalysis[]> {
-    this.ensure();
+    await this.ensure();
+    if (signal?.aborted) throw new AbortError();
     const results: PositionAnalysis[] = new Array(fens.length);
     let next = 0;
 

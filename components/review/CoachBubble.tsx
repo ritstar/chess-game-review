@@ -14,6 +14,8 @@ export interface CoachMessage {
   details?: string[];
   evaluation?: EvalPoint | null;
   loading?: boolean;
+  /** 0–1: shows a progress bar under the text (game analysis). */
+  progress?: number;
   /** Small label on the bubble's edge, e.g. "Analysis". */
   tag?: string;
   tone?: 'default' | 'success' | 'error';
@@ -65,7 +67,7 @@ export function CoachBubble({
   /** Compact phone variant: two lines, tap to open the full explanation. */
   onOpen?: () => void;
 }) {
-  const { icon, san, headline, details = [], evaluation, loading, tag, tone = 'default' } = message;
+  const { icon, san, headline, details = [], evaluation, loading, tag, tone = 'default', progress } = message;
   if (onOpen) return <CompactBubble message={message} onOpen={onOpen} className={className} />;
   return (
     <div className={cn('flex items-start gap-2.5', className)}>
@@ -121,6 +123,11 @@ export function CoachBubble({
               ))}
             </div>
           )
+        )}
+        {progress !== undefined && (
+          <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-[#e6e5e0]" role="progressbar" aria-valuenow={Math.round(progress * 100)}>
+            <div className="h-full rounded-full bg-[var(--color-best)] transition-[width] duration-300" style={{ width: `${Math.max(3, progress * 100)}%` }} />
+          </div>
         )}
       </div>
     </div>

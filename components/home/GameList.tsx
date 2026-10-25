@@ -26,6 +26,8 @@ const CLASS_ICON: Record<TimeClass, LucideIcon> = {
   unknown: Timer,
 };
 
+const PAGE = 40;
+
 const RESULT_STYLE = {
   win: { label: 'Won', className: 'bg-accent text-white' },
   loss: { label: 'Lost', className: 'bg-danger text-white' },
@@ -59,7 +61,10 @@ function useSummaries(games: GameRecord[]) {
 export function GameList({ games, onSelect, loadingMore, hasMore, onLoadMore }: GameListProps) {
   const [filter, setFilter] = useState<TimeClass | 'all'>('all');
   const classes = useMemo(() => [...new Set(games.map((g) => g.timeClass))], [games]);
-  const shown = filter === 'all' ? games : games.filter((g) => g.timeClass === filter);
+  // Busy players have hundreds of games a month; draw them in batches.
+  const [limit, setLimit] = useState(PAGE);
+  const matching = filter === 'all' ? games : games.filter((g) => g.timeClass === filter);
+  const shown = matching.slice(0, limit);
   const summaries = useSummaries(games);
 
   return (
@@ -69,7 +74,10 @@ export function GameList({ games, onSelect, loadingMore, hasMore, onLoadMore }: 
           {(['all', ...classes] as const).map((c) => {
             const Icon = c === 'all' ? null : CLASS_ICON[c];
             return (
-              <button key={c} type="button" className="chip shrink-0 py-1.5" data-active={filter === c} onClick={() => setFilter(c)}>
+              <button key={c} type="button" className="chip shrink-0 py-1.5" data-active={filter === c} onClick={() => {
+                  setFilter(c);
+                  setLimit(PAGE);
+                }}>
                 {Icon && <Icon size={14} />}
                 {c === 'all' ? 'All' : CLASS_LABEL[c]}
               </button>
@@ -132,7 +140,15 @@ export function GameList({ games, onSelect, loadingMore, hasMore, onLoadMore }: 
         {shown.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted">No games in this category.</li>}
       </ul>
 
-      {hasMore && (
+      {matching.length > limit && (
+        <div className="mt-4 flex justify-center">
+          <button type="button" className="btn btn-ghost w-full border border-line py-3 sm:w-auto" onClick={() => setLimit((l) => l + PAGE)}>
+            Show more games
+          </button>
+        </div>
+      )}
+
+      {matching.length <= limit && hasMore && (
         <div className="mt-4 flex justify-center">
           <button type="button" className="btn btn-ghost w-full border border-line py-3 sm:w-auto" disabled={loadingMore} onClick={onLoadMore}>
             {loadingMore ? 'Loading…' : 'Load older games'}

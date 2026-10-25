@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { GameList, GameListSkeleton } from '@/components/home/GameList';
 import { GameLoader, type LoaderSource, type RecentSearch } from '@/components/home/GameLoader';
 import { ReviewScreen } from '@/components/review/ReviewScreen';
+import { prefetchEngine } from '@/lib/engine/stockfish';
 import { gameFromPgn } from '@/lib/games/pgn';
 import { SourceError, fetchGames, fetchLichessGameByUrl } from '@/lib/games/sources';
 import type { GameRecord } from '@/lib/games/types';
@@ -115,6 +116,13 @@ export function App() {
     }
   }, [search]);
 
+  // Once games are listed a review is likely next: fetch the engine while idle.
+  useEffect(() => {
+    if (games.length === 0) return;
+    const t = setTimeout(() => void prefetchEngine(), 1500);
+    return () => clearTimeout(t);
+  }, [games.length]);
+
   // Browser back from a review returns to the list.
   useEffect(() => {
     const onPop = () => {
@@ -191,11 +199,12 @@ export function App() {
           <div className={cn('mx-auto w-full max-w-3xl px-4 pb-16', searched ? 'pt-4 sm:pt-8' : 'pt-8 sm:pt-16')}>
             {/* The pitch is for first-time visitors; once games are showing, it gets out of the way. */}
             {!searched && (
-              <div className="mb-6 text-center sm:mb-8">
-                <h1 className="text-[28px] leading-tight font-extrabold tracking-tight sm:text-[44px]">
+              // Short on phones so the search box sits high enough to stay above the keyboard.
+              <div className="mb-5 text-center sm:mb-8">
+                <h1 className="text-[24px] leading-tight font-extrabold tracking-tight sm:text-[44px]">
                   Find out what really happened in your game.
                 </h1>
-                <p className="mx-auto mt-3 max-w-xl text-[15px] text-muted sm:text-[16px]">
+                <p className="mx-auto mt-3 hidden max-w-xl text-[16px] text-muted sm:block">
                   Free move-by-move review of your Chess.com and Lichess games: brilliant moves, blunders, accuracy
                   and the reasons behind them.
                 </p>
@@ -258,6 +267,7 @@ export function App() {
                     </button>
                   </div>
                   <GameList
+                    key={`${searched?.source}:${searched?.username}`}
                     games={games}
                     onSelect={openGame}
                     loadingMore={loadingMore}

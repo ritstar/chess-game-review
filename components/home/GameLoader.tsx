@@ -127,7 +127,8 @@ export function GameLoader(props: GameLoaderProps) {
                 <input
                   value={username}
                   onChange={(e) => onUsernameChange(e.target.value)}
-                  placeholder={source === 'chesscom' ? 'Chess.com username' : 'Lichess username'}
+                  placeholder="Username"
+                  enterKeyHint="search"
                   autoComplete="off"
                   autoCapitalize="off"
                   spellCheck={false}
