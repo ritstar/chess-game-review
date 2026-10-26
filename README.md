@@ -1,53 +1,149 @@
-# ♟ Game Review
+<div align="center">
 
-Free, private game review for **Chess.com** and **Lichess** games, powered by **Stockfish 17** running entirely in your browser.
+<a href="https://chess-game-review.vercel.app"><img src="docs/screenshots/banner.png" alt="Game Review" width="100%" /></a>
 
-Load your games by username (or paste a PGN / Lichess link) and get:
+### Chess.com-style game review, free and private, with Stockfish 17 running in your browser.
 
-- **Move classifications**: Brilliant `!!`, Great `!`, Best, Excellent, Good, Book, Forced, Inaccuracy `?!`, Mistake `?`, Miss, Blunder `??`
-- **Explanations in plain English**: "Allows a fork: Ne3 attacks your queen on d1 and rook on f1", "Missed mate in 2: …", "This leaves the bishop on f6 undefended", with the best line and the opponent's refutation
-- **Accuracy** for both players, plus average centipawn loss
-- **Evaluation graph** with the key moments marked; click or drag it to jump around
-- **Explore your own moves**: drag a piece or tap a piece and then a square, at any point in the review. A live Stockfish instance rates the move you tried (Best, Inaccuracy, Blunder and so on) and explains it. Lines appear in the move list, and **Back to game** (or Esc) returns you to exactly where you left the game. Undo takes back one move.
-- **Chess.com-style review flow**: a coach speech bubble, a horizontal eval bar on phones, a swipeable move strip, and a bottom bar with **Retry** (find a better move than your mistake), **Show** (play out the engine's follow-up), **Best** (see the best move instead) and **Next**
-- **Sound and haptics**: distinct sounds for moves, captures, checks, castling, promotion and illegal moves (generated in code, no audio files). Vibration works on Android; recent iPhones get a light tap through an unofficial Safari workaround. Both can be switched off in settings.
-- **Engine lines**: top 3 Stockfish lines for every position (hover one to see it on the board, click it to play it)
-- **Opening names** from a 3,800-line opening book; theory moves are marked as Book
-- Clocks, captured material, best-move and threat arrows, autoplay, five board themes (including wood) and keyboard navigation (← → Home End, F to flip, Space to autoplay, Esc to return to the game, Backspace to undo)
-- Shareable URLs (`?src=chesscom&u=<user>&g=<game>`). Finished reviews are cached in IndexedDB, so reopening a game is instant.
+[![Live demo](https://img.shields.io/badge/▶_Live_demo-chess--game--review.vercel.app-81b64c?style=for-the-badge)](https://chess-game-review.vercel.app)
 
-## Built for phones
+[![CI](https://github.com/ritstar/chess-game-review/actions/workflows/ci.yml/badge.svg)](https://github.com/ritstar/chess-game-review/actions/workflows/ci.yml)
+![Next.js](https://img.shields.io/badge/Next.js_16-000?logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React_19-20232a?logo=react&logoColor=61dafb)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_v4-0f172a?logo=tailwindcss&logoColor=38bdf8)
+![Stockfish](https://img.shields.io/badge/Stockfish_17.1-WASM-81b64c)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-Most reviews happen on a phone, so the phone layout is the primary design:
+**[Try it](https://chess-game-review.vercel.app)** · [Features](#-features) · [How it works](#-how-the-analysis-works) · [Run locally](#-run-it-locally) · [Author](#-author)
 
-- **Everything on one screen.** The review is a full-screen view that never scrolls: header, eval bar, a two-line coach, the board (sized to whatever height is left, so it's full width on most phones), the move strip and a thumb-reach action bar. Player bars appear when the screen is tall enough. Landscape puts the board beside the controls.
-- **Details on demand.** Tap the coach for the full explanation, the best line and the engine lines (tap a line to play it). Settings, flip, copy PGN and the summary live in the ⋯ menu. Both open as bottom sheets.
-- **Straight to your games.** The last player you looked up loads automatically; games you've reviewed show your accuracy in the list.
-- **Installable.** Add it to your home screen (Share → Add to Home Screen on iPhone, Install app on Android) and it opens full-screen like an app, with no browser toolbars.
-- Fast: a step paints in well under a frame's budget on a mid-range phone. No pull-to-refresh while reviewing, no zoom on input focus, and the notch and home indicator are respected.
+</div>
 
-## How the analysis works
+---
+
+Type your **Chess.com** or **Lichess** username, tap a game and get a full review in seconds: every move rated from Brilliant to Blunder, accuracy for both players, the key moments, and a coach that explains *why* in plain English. No account, no uploads and no limits, because the engine runs on your own device.
+
+<div align="center">
+
+| Pick a game | Summary | Review | Details |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/phone-list.png" width="200" alt="Game list" /> | <img src="docs/screenshots/phone-summary.png" width="200" alt="Game summary with accuracy" /> | <img src="docs/screenshots/phone-review.png" width="200" alt="Move-by-move review" /> | <img src="docs/screenshots/phone-details.png" width="200" alt="Explanation and engine lines" /> |
+
+<img src="docs/screenshots/desktop-review.png" alt="Desktop review" width="100%" />
+
+</div>
+
+## ✨ Features
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 🎯 Every move rated
+![Brilliant](https://img.shields.io/badge/!!-Brilliant-26c2a3)
+![Great](https://img.shields.io/badge/!-Great-749bbf)
+![Best](https://img.shields.io/badge/%E2%98%85-Best-81b64c)
+![Excellent](https://img.shields.io/badge/👍-Excellent-81b64c)
+![Good](https://img.shields.io/badge/✓-Good-95b776)
+![Book](https://img.shields.io/badge/📖-Book-d5a47d)
+![Forced](https://img.shields.io/badge/→-Forced-97afa2)
+![Inaccuracy](https://img.shields.io/badge/%3F!-Inaccuracy-f7c045)
+![Mistake](https://img.shields.io/badge/%3F-Mistake-ffa459)
+![Miss](https://img.shields.io/badge/✕-Miss-ff7769)
+![Blunder](https://img.shields.io/badge/%3F%3F-Blunder-fa412d)
+
+Great and Brilliant moves get a Chess.com-style pop on the board, with a chime.
+
+</td>
+<td width="50%" valign="top">
+
+### 🗣️ Explanations, not just symbols
+> *"Allows a fork: Ne3 attacks your queen on d1 and rook on f1"*
+> *"Missed mate in 2"* · *"Drops a pawn: 43… Bxb4 44. cxb4 Rxb4"*
+
+Tactical checks on the engine lines find forks, hanging pieces, threats and material swings, and the coach tells you about them, along with the best line and the refutation.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### ♟️ Explore your own ideas
+Drag a piece (or tap one and then a square) at any point. A live Stockfish rates the move you tried and explains it. **Back to game** returns you exactly where you left off. **Retry** lets you find a better move than your mistake, **Show** plays out the follow-up, and **Best** shows the engine's move.
+
+</td>
+<td valign="top">
+
+### 📊 The whole game at a glance
+Accuracy for both players (the Lichess method), an evaluation graph with key moments marked (tap or drag it to jump around), the top 3 engine lines, opening names from a 3,800-line book, clocks and captured material.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 📱 Built for phones first
+One full-screen view that never scrolls: eval bar, coach, a full-width board, a swipeable move strip and a thumb-reach action bar. Details open as bottom sheets. It's installable to the home screen as an app (PWA), and respects the notch and the home indicator.
+
+</td>
+<td valign="top">
+
+### 🔊 Feels like a real board
+Distinct sounds for moves, captures, checks, castling and promotion, all generated in code with no audio files. Haptics on Android, plus a light tap on recent iPhones. Five board themes (including wood), autoplay and keyboard shortcuts.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### ⚡ Fast
+Positions are analysed in parallel by a pool of Stockfish WASM workers, so a 40-move game usually takes 10–30 seconds. Finished reviews are cached in IndexedDB, so reopening a game is instant.
+
+</td>
+<td valign="top">
+
+### 🔒 Private
+Everything runs in your browser. Your games go straight from the Chess.com / Lichess API to your device and nowhere else. You can share a link to any review: `?src=chesscom&u=<user>&g=<game>`.
+
+</td>
+</tr>
+</table>
+
+<details>
+<summary><b>⌨️ Keyboard shortcuts</b></summary>
+
+| Key | Action |
+|---|---|
+| <kbd>←</kbd> <kbd>→</kbd> | Previous / next move |
+| <kbd>↑</kbd> <kbd>Home</kbd> · <kbd>↓</kbd> <kbd>End</kbd> | Start / end of the game |
+| <kbd>Space</kbd> | Autoplay |
+| <kbd>F</kbd> | Flip the board |
+| <kbd>Esc</kbd> | Back to the game from an explored line |
+| <kbd>Backspace</kbd> | Undo an explored move |
+
+</details>
+
+## 🧠 How the analysis works
 
 | Step | What happens |
 |---|---|
-| Engine | Each position is searched once with MultiPV 3 (Standard: depth 16, capped at 1.5 s). Positions are independent, so they are spread across a pool of single-threaded Stockfish workers (up to 4, one per spare core). A 40-move game usually finishes in 10–30 seconds. |
-| Win % | Scores are converted to winning chances with the logistic model Lichess fitted on real games. |
-| Classification | Based on **expected points lost** relative to the best move, following Chess.com's published bands: ≤2% Excellent, ≤5% Good, ≤10% Inaccuracy, ≤20% Mistake, >20% Blunder. A +0.5 → −1.0 swing is serious; +9 → +7.5 isn't. In positions that are already decided, small slips drop one band. |
-| Best / Great | **Best** means the engine's top move. **Great** means the top move when every alternative is at least a mistake; plain recaptures and grabbing a loose piece don't count. |
-| Brilliant | A sound **sacrifice**: the move leaves material the opponent can win by static exchange (legal-move SEE, so pins and checks count), it is still (near-)best, and you were not already completely winning. |
-| Miss | You failed to punish your opponent's mistake or blunder, but didn't make things worse than before it. |
-| Book | The position appears in the [Lichess openings](https://github.com/lichess-org/chess-openings) dataset, including transpositions. |
-| Accuracy | The Lichess accuracy method: per-move accuracy from win % lost, combined as a volatility-weighted mean and a harmonic mean. |
+| **Engine** | Each position is searched once with MultiPV 3 (Standard: depth 16, capped at 1.5 s), spread across up to 4 single-threaded Stockfish 17.1 workers. |
+| **Win %** | Scores become winning chances with the logistic model Lichess fitted on real games. |
+| **Classification** | Based on **expected points lost** against the best move, using Chess.com's published bands: ≤2% Excellent, ≤5% Good, ≤10% Inaccuracy, ≤20% Mistake, >20% Blunder. A +0.5 → −1.0 swing is serious; +9 → +7.5 isn't. |
+| **Best / Great** | **Best** is the engine's top move. **Great** is the top move when every alternative is at least a mistake. Plain recaptures don't count. |
+| **Brilliant** | A sound **sacrifice**: it leaves material the opponent can win by static exchange (legal-move SEE, so pins and checks count), it is still (near-)best, and you weren't already completely winning. |
+| **Miss** | You failed to punish your opponent's mistake or blunder. |
+| **Book** | The position is in the [Lichess openings](https://github.com/lichess-org/chess-openings) dataset, including transpositions. |
+| **Accuracy** | The Lichess method: per-move accuracy from win % lost, combined as a volatility-weighted mean and a harmonic mean. |
 
-Explanations come from tactical checks on the engine lines: mates allowed or missed, forks, hanging pieces and material swings along the principal variation.
+## 🚀 Run it locally
 
-## Getting started
-
-Requires Node.js 20+.
+Requires **Node.js 20+**.
 
 ```bash
+git clone https://github.com/ritstar/chess-game-review.git
+cd chess-game-review
 npm install
-npm run dev        # http://localhost:3000
+npm run dev        # → http://localhost:3000
 ```
 
 | Script | |
@@ -55,16 +151,17 @@ npm run dev        # http://localhost:3000
 | `npm run build` / `npm start` | Production build and server |
 | `npm run check` | Lint, typecheck and tests |
 | `npm test` | Unit tests plus an end-to-end test that runs the real Stockfish build in Node |
-| `npm run build:openings [dir]` | Regenerate `public/data/openings.json` from the Lichess openings TSVs (downloads them if no directory is given) |
+| `npm run build:openings [dir]` | Regenerate `public/data/openings.json` from the Lichess openings TSVs |
 
-## Project layout
+<details>
+<summary><b>📁 Project layout</b></summary>
 
 ```
-app/                Next.js app router entry, layout and global styles
+app/                Next.js app router entry, layout, metadata and global styles
 components/
   App.tsx           Home screen, game search and routing between views
   home/             Game source picker and game list
-  review/           Board, eval bar and graph, move list, coach card, engine lines, summary
+  review/           Board, eval bar and graph, move list, coach, engine lines, summary
 hooks/
   useGameReview.ts  Runs the engine pool, streams results and caches finished reviews
   useExplorer.ts    Live engine and ratings for moves tried on the board
@@ -79,28 +176,34 @@ public/data/        Generated opening book
 tests/              Vitest suites
 ```
 
-## Deployment
+</details>
+
+<details>
+<summary><b>☁️ Deployment</b></summary>
 
 Live at **https://chess-game-review.vercel.app**. Every push to `main` deploys to Vercel, and CI runs lint, typecheck, tests and a production build.
 
-The app is fully static apart from Next.js itself, so it deploys anywhere Next.js runs (Vercel, Netlify, a Node server). Security headers (CSP, frame and referrer policies) and cache headers for the engine binary are set in `next.config.ts`. The CSP allows outgoing requests only to `api.chess.com` and `lichess.org`. Set `NEXT_PUBLIC_SITE_URL` if you host it on another domain; it is used for canonical URLs, the sitemap and link previews.
+The app is static apart from Next.js itself, so it runs anywhere Next.js does (Vercel, Netlify, a Node server). Security headers (CSP, frame and referrer policies) and cache headers for the engine binary are set in `next.config.ts`. The CSP allows outgoing requests only to `api.chess.com` and `lichess.org`. Set `NEXT_PUBLIC_SITE_URL` if you host it on another domain; it's used for canonical URLs, the sitemap and link previews.
 
-## Author
+</details>
 
-Made by [@ritstar](https://github.com/ritstar). Source: [github.com/ritstar/chess-game-review](https://github.com/ritstar/chess-game-review).
+## 👤 Author
 
-## Licence
+<a href="https://github.com/ritstar"><img src="https://github.com/ritstar.png" width="72" alt="ritstar" align="left" style="border-radius:50%; margin-right:16px" /></a>
 
-Copyright © 2026 [@ritstar](https://github.com/ritstar).
+**[@ritstar](https://github.com/ritstar)**<br />
+If this helped your chess, consider giving the repo a ⭐. Bugs and ideas are welcome in [issues](https://github.com/ritstar/chess-game-review/issues).
 
-This program is free software: you can redistribute it and/or modify it under the terms of the **GNU General Public License v3.0** or (at your option) any later version. See [LICENSE](LICENSE). It is distributed WITHOUT ANY WARRANTY.
+<br clear="left" />
 
-GPLv3 because the app ships Stockfish, which is GPLv3. Anyone who distributes a modified version must share its source under the same licence.
+## 📜 Licence
 
-## Credits
+Copyright © 2026 [@ritstar](https://github.com/ritstar). Released under the **[GNU General Public License v3.0](LICENSE)** or (at your option) any later version, and distributed without any warranty. GPLv3 because the app ships Stockfish, which is GPLv3: anyone who distributes a modified version must share its source under the same licence.
 
-- [Stockfish](https://stockfishchess.org) and [stockfish.js](https://github.com/nmrugg/stockfish.js), GPLv3
+### Credits
+
+- [Stockfish](https://stockfishchess.org) and [stockfish.js](https://github.com/nmrugg/stockfish.js) (GPLv3)
 - [chess.js](https://github.com/jhlywa/chess.js) (BSD-2-Clause) and [react-chessboard](https://github.com/Clariity/react-chessboard) (MIT)
-- Opening data: [lichess-org/chess-openings](https://github.com/lichess-org/chess-openings), CC0
+- Opening data: [lichess-org/chess-openings](https://github.com/lichess-org/chess-openings) (CC0)
 
-Not affiliated with Chess.com or Lichess.
+<div align="center"><sub>Not affiliated with Chess.com or Lichess.</sub></div>
