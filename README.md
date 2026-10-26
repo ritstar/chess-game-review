@@ -89,10 +89,18 @@ The app is fully static apart from Next.js itself, so it deploys anywhere Next.j
 
 Made by [@ritstar](https://github.com/ritstar). Source: [github.com/ritstar/chess-game-review](https://github.com/ritstar/chess-game-review).
 
-## Credits and licences
+## Licence
+
+Copyright © 2026 [@ritstar](https://github.com/ritstar).
+
+This program is free software: you can redistribute it and/or modify it under the terms of the **GNU General Public License v3.0** or (at your option) any later version. See [LICENSE](LICENSE). It is distributed WITHOUT ANY WARRANTY.
+
+GPLv3 because the app ships Stockfish, which is GPLv3. Anyone who distributes a modified version must share its source under the same licence.
+
+## Credits
 
 - [Stockfish](https://stockfishchess.org) and [stockfish.js](https://github.com/nmrugg/stockfish.js), GPLv3
-- [chess.js](https://github.com/jhlywa/chess.js) and [react-chessboard](https://github.com/Clariity/react-chessboard)
+- [chess.js](https://github.com/jhlywa/chess.js) (BSD-2-Clause) and [react-chessboard](https://github.com/Clariity/react-chessboard) (MIT)
 - Opening data: [lichess-org/chess-openings](https://github.com/lichess-org/chess-openings), CC0
 
 Not affiliated with Chess.com or Lichess.
