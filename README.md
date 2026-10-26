@@ -24,6 +24,12 @@ Type your **Chess.com** or **Lichess** username, tap a game and get a full revie
 
 <div align="center">
 
+<img src="docs/demo.gif" alt="Demo: open a game, step through the review, a Great move pops, then a mistake is explained" width="320" />
+
+<sub>Open a game → summary → step through the moves → a <b>Great</b> move pops → a mistake explained, with the best move shown</sub>
+
+<br /><br />
+
 | Pick a game | Summary | Review | Details |
 |:---:|:---:|:---:|:---:|
 | <img src="docs/screenshots/phone-list.png" width="200" alt="Game list" /> | <img src="docs/screenshots/phone-summary.png" width="200" alt="Game summary with accuracy" /> | <img src="docs/screenshots/phone-review.png" width="200" alt="Move-by-move review" /> | <img src="docs/screenshots/phone-details.png" width="200" alt="Explanation and engine lines" /> |
