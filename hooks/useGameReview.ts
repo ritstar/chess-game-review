@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { buildReview, terminalEval } from '@/lib/analysis/review';
+import { buildReview } from '@/lib/analysis/review';
 import { loadOpeningBook, type OpeningBook } from '@/lib/analysis/openings';
 import type { GameReview, MoveReview } from '@/lib/analysis/types';
 import { cacheGet, cacheSet } from '@/lib/cache';
+import { analyseGame, type AnalysisStage } from '@/lib/analysis/pipeline';
 import { AbortError, EnginePool } from '@/lib/engine/stockfish';
 import type { PositionAnalysis } from '@/lib/engine/uci';
 import { parseGame, type ParsedGame } from '@/lib/games/pgn';
@@ -21,6 +22,8 @@ export interface ReviewState {
   progress: number;
   error: string | null;
   fromCache: boolean;
+  /** Which pass is running: every position, or the deeper check of key moments. */
+  stage: AnalysisStage;
 }
 
 export interface ReviewSummary {
@@ -33,11 +36,6 @@ export const summaryKey = (gameId: string) => `summary:${gameId}`;
 /** A few bytes per reviewed game, so the game list can show accuracies. */
 function saveSummary(gameId: string, review: GameReview) {
   return cacheSet<ReviewSummary>(summaryKey(gameId), { white: review.white.accuracy, black: review.black.accuracy });
-}
-
-/** Keep cached entries small: long PVs are only shown truncated anyway. */
-function compact(p: PositionAnalysis): PositionAnalysis {
-  return { ...p, lines: p.lines.map((l) => ({ ...l, pv: l.pv.slice(0, 12) })) };
 }
 
 /**
@@ -53,6 +51,7 @@ export function useGameReview(game: GameRecord | null, depth: AnalysisDepth, run
     progress: 0,
     error: null,
     fromCache: false,
+    stage: 'search',
   });
 
   const parsed = useMemo(() => {
@@ -77,7 +76,7 @@ export function useGameReview(game: GameRecord | null, depth: AnalysisDepth, run
     let book: OpeningBook = {};
 
     const run = async () => {
-      setState({ review: null, status: 'analyzing', progress: 0, error: null, fromCache: false });
+      setState({ review: null, status: 'analyzing', progress: 0, error: null, fromCache: false, stage: 'search' });
       book = await loadOpeningBook();
       if (controller.signal.aborted) return;
 
@@ -85,49 +84,51 @@ export function useGameReview(game: GameRecord | null, depth: AnalysisDepth, run
       if (controller.signal.aborted) return;
       if (cached && cached.length === fens.length) {
         const review = buildReview(plies, cached, book, undefined, game.perspective);
-        setState({ review, status: 'done', progress: 1, error: null, fromCache: true });
+        setState({ review, status: 'done', progress: 1, error: null, fromCache: true, stage: 'deep' });
         void saveSummary(game.id, review);
         return;
       }
 
-      // Game-over positions need no engine.
-      const positions: (PositionAnalysis | null)[] = fens.map((fen) =>
-        terminalEval(fen) ? { fen, depth: 0, lines: [] } : null,
-      );
-      const todo = fens.map((_, i) => i).filter((i) => !positions[i]);
-      let done = fens.length - todo.length;
-
       // Re-render at most a few times per second while results stream in.
+      let latest: { positions: (PositionAnalysis | null)[]; progress: number; stage: AnalysisStage } | null = null;
       let scheduled = false;
       const flush = () => {
         scheduled = false;
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || !latest) return;
+        const { positions, progress, stage } = latest;
+        // The second pass rewrites positions anywhere in the game, which can
+        // change neighbouring ratings, so finished moves are only reusable in pass 1.
+        if (stage === 'deep') memo.clear();
         setState((s) => ({
           ...s,
           review: buildReview(plies, positions, book, memo, game.perspective),
-          progress: done / fens.length,
+          progress,
+          stage,
         }));
       };
 
       poolRef.current ??= new EnginePool();
-      await poolRef.current.analyseAll(
-        todo.map((i) => fens[i]),
-        DEPTH_PRESETS[depth],
-        (j, result) => {
-          positions[todo[j]] = compact(result);
-          done++;
+      const final = await analyseGame({
+        plies,
+        startFen: parsed.game.startFen,
+        pool: poolRef.current,
+        preset: DEPTH_PRESETS[depth],
+        book,
+        perspective: game.perspective,
+        signal: controller.signal,
+        onProgress: (positions, progress, stage) => {
+          latest = { positions, progress, stage };
           if (!scheduled) {
             scheduled = true;
             setTimeout(flush, 250);
           }
         },
-        controller.signal,
-      );
+      });
       if (controller.signal.aborted) return;
 
-      const final = positions as PositionAnalysis[];
+      memo.clear();
       const review = buildReview(plies, final, book, memo, game.perspective);
-      setState({ review, status: 'done', progress: 1, error: null, fromCache: false });
+      setState({ review, status: 'done', progress: 1, error: null, fromCache: false, stage: 'deep' });
       void cacheSet(key, final);
       void saveSummary(game.id, review);
     };
@@ -146,7 +147,7 @@ export function useGameReview(game: GameRecord | null, depth: AnalysisDepth, run
   }, [game, parsed, depth, runId]);
 
   if (!game || !parsed.game) {
-    return { parsed: null, review: null, status: parsed.error ? 'error' : 'idle', progress: 0, error: parsed.error, fromCache: false };
+    return { parsed: null, review: null, status: parsed.error ? 'error' : 'idle', progress: 0, error: parsed.error, fromCache: false, stage: 'search' };
   }
   return { parsed: parsed.game, ...state };
 }

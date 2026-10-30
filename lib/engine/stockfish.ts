@@ -2,9 +2,31 @@ import { EngineLine, PositionAnalysis, parseInfoLine } from './uci';
 
 export interface SearchLimits {
   depth: number;
-  /** Hard cap per position so slow devices still finish. */
+  /**
+   * Node budget. Together with a cleared hash this makes a search fully
+   * deterministic: the same game gets the same review on every device, only
+   * faster or slower.
+   */
+  nodes: number;
+  /** Safety cap per search so very slow devices still finish. */
   moveTimeMs: number;
   multiPv: number;
+}
+
+/** One position to analyse, optionally with the move that was played from it. */
+export interface SearchJob {
+  fen: string;
+  limits: SearchLimits;
+  /** UCI move to score in the same search when it isn't among the top lines. */
+  played?: string;
+}
+
+/** Line-based connection to a UCI engine: a Web Worker in the browser, a child process in Node. */
+export interface UciTransport {
+  post(command: string): void;
+  onLine(listener: (line: string) => void): void;
+  onError(listener: (error: Error) => void): void;
+  terminate(): void;
 }
 
 interface Job {
@@ -13,7 +35,7 @@ interface Job {
   lines: Map<number, EngineLine>;
   resolve: (value: PositionAnalysis) => void;
   reject: (reason: Error) => void;
-  watchdog: ReturnType<typeof setTimeout>;
+  timers: ReturnType<typeof setTimeout>[];
   onUpdate?: (partial: PositionAnalysis) => void;
 }
 
@@ -23,7 +45,7 @@ const WASM_URL = '/stockfish/stockfish.wasm';
 let wasmPromise: Promise<unknown> | null = null;
 
 /**
- * Download the engine binary (~5.6 MB) into the HTTP cache once. Workers
+ * Download the engine binary (~7 MB) into the HTTP cache once. Workers
  * started together would otherwise each fetch it before the cache fills,
  * which costs real money on mobile data. Safe to call early (e.g. while the
  * user browses their games) to make the first review start sooner.
@@ -38,6 +60,17 @@ export function prefetchEngine(): Promise<unknown> {
   return wasmPromise;
 }
 
+function workerTransport(): UciTransport {
+  const worker = new Worker(ENGINE_URL);
+  return {
+    post: (command) => worker.postMessage(command),
+    onLine: (listener) => worker.addEventListener('message', (e: MessageEvent) => listener(String(e.data ?? ''))),
+    onError: (listener) =>
+      worker.addEventListener('error', () => listener(new Error('Failed to load the Stockfish engine.')), { once: true }),
+    terminate: () => worker.terminate(),
+  };
+}
+
 export class AbortError extends Error {
   constructor() {
     super('Analysis cancelled');
@@ -46,42 +79,38 @@ export class AbortError extends Error {
 }
 
 /**
- * A single Stockfish instance running in a Web Worker. Handles one search at
- * a time; use {@link EnginePool} to analyse several positions in parallel.
+ * A single Stockfish instance. Handles one search at a time; use
+ * {@link EnginePool} to analyse several positions in parallel.
  */
 export class StockfishEngine {
-  private worker: Worker;
+  private transport: UciTransport;
   private ready: Promise<void>;
   private job: Job | null = null;
   private multiPv = 0;
   /** Set while a cancelled search winds down; its late `bestmove` must not leak into the next job. */
   private stopping: Promise<void> | null = null;
   private onStopped: (() => void) | null = null;
+  private booted = false;
 
-  constructor(hashMb = 16) {
-    this.worker = new Worker(ENGINE_URL);
+  constructor(transport: UciTransport = workerTransport(), hashMb = 16) {
+    this.transport = transport;
     this.ready = new Promise((resolve, reject) => {
-      const onBoot = (e: MessageEvent) => {
-        const line = String(e.data ?? '');
+      transport.onLine((line) => {
+        if (this.booted) return this.onMessage(line);
         if (line === 'uciok') {
-          this.worker.postMessage(`setoption name Hash value ${hashMb}`);
-          this.worker.postMessage('isready');
+          transport.post(`setoption name Hash value ${hashMb}`);
+          transport.post('isready');
         } else if (line === 'readyok') {
-          this.worker.removeEventListener('message', onBoot);
+          this.booted = true;
           resolve();
         }
-      };
-      this.worker.addEventListener('message', onBoot);
-      this.worker.addEventListener('error', () => reject(new Error('Failed to load the Stockfish engine.')), {
-        once: true,
       });
+      transport.onError(reject);
     });
-    this.worker.addEventListener('message', this.onMessage);
-    this.worker.postMessage('uci');
+    transport.post('uci');
   }
 
-  private onMessage = (e: MessageEvent) => {
-    const line = String(e.data ?? '');
+  private onMessage(line: string) {
     if (this.onStopped && line.startsWith('bestmove')) {
       this.onStopped();
       this.onStopped = null;
@@ -104,13 +133,15 @@ export class StockfishEngine {
     }
 
     if (line.startsWith('bestmove')) {
-      clearTimeout(job.watchdog);
+      job.timers.forEach(clearTimeout);
       this.job = null;
       job.resolve(this.collect(job));
     }
-  };
+  }
 
   private collect(job: Job): PositionAnalysis {
+    // Lines from an unfinished iteration can be shallower than the others;
+    // keep them, but report the depth every line reached.
     const lines = [...job.lines.values()].sort((a, b) => a.rank - b.rank);
     const depth = lines[0]?.depth ?? 0;
     return { fen: job.fen, depth, lines };
@@ -118,45 +149,68 @@ export class StockfishEngine {
 
   /**
    * Search a position. `onUpdate` receives the lines found so far every time
-   * the engine reports progress, for live displays.
+   * the engine reports progress, for live displays. `fresh` clears the hash
+   * first so the result doesn't depend on what this engine searched before;
+   * `searchMoves` restricts the search to those moves.
    */
   async analyse(
     fen: string,
     limits: SearchLimits,
     onUpdate?: (partial: PositionAnalysis) => void,
+    options: { fresh?: boolean; searchMoves?: string[] } = {},
   ): Promise<PositionAnalysis> {
     await this.ready;
     if (this.stopping) await this.stopping;
     if (this.job) throw new Error('Engine is busy');
 
     if (this.multiPv !== limits.multiPv) {
-      this.worker.postMessage(`setoption name MultiPV value ${limits.multiPv}`);
+      this.transport.post(`setoption name MultiPV value ${limits.multiPv}`);
       this.multiPv = limits.multiPv;
     }
+    if (options.fresh) this.transport.post('ucinewgame');
 
     return new Promise<PositionAnalysis>((resolve, reject) => {
-      // Stockfish honours movetime itself; the watchdog only guards against a
-      // wedged worker.
-      const watchdog = setTimeout(() => {
-        if (this.job !== job) return;
-        this.job = null;
-        this.halt();
-        const result = this.collect(job);
-        if (result.lines.length) resolve(result);
-        else reject(new Error('Engine did not respond.'));
-      }, limits.moveTimeMs + 5000);
-
-      const job: Job = { fen, limits, lines: new Map(), resolve, reject, watchdog, onUpdate };
+      const job: Job = { fen, limits, lines: new Map(), resolve, reject, timers: [], onUpdate };
+      job.timers.push(
+        // Out of time: stop and take what the search has (bestmove resolves the job).
+        setTimeout(() => this.job === job && this.transport.post('stop'), limits.moveTimeMs),
+        // A wedged worker never answers; give up on it.
+        setTimeout(() => {
+          if (this.job !== job) return;
+          this.job = null;
+          this.halt();
+          const result = this.collect(job);
+          if (result.lines.length) resolve(result);
+          else reject(new Error('Engine did not respond.'));
+        }, limits.moveTimeMs + 5000),
+      );
       this.job = job;
-      this.worker.postMessage(`position fen ${fen}`);
-      this.worker.postMessage(`go depth ${limits.depth} movetime ${limits.moveTimeMs}`);
+      this.transport.post(`position fen ${fen}`);
+      // `searchmoves` takes every remaining token, so it must come last.
+      const restrict = options.searchMoves?.length ? ` searchmoves ${options.searchMoves.join(' ')}` : '';
+      this.transport.post(`go depth ${limits.depth} nodes ${limits.nodes}${restrict}`);
     });
+  }
+
+  /**
+   * Analyse a position for the game review: a fresh, deterministic MultiPV
+   * search, plus the played move scored on its own when the engine didn't
+   * consider it one of the best.
+   */
+  async run(job: SearchJob): Promise<PositionAnalysis> {
+    const result = await this.analyse(job.fen, job.limits, undefined, { fresh: true });
+    if (job.played && result.lines.length && !result.lines.some((l) => l.pv[0] === job.played)) {
+      const own = await this.analyse(job.fen, { ...job.limits, multiPv: 1 }, undefined, { searchMoves: [job.played] });
+      const line = own.lines[0];
+      if (line?.pv[0] === job.played) result.played = { ...line, rank: 0 };
+    }
+    return result;
   }
 
   /** Abort the current search. The pending promise rejects with {@link AbortError}. */
   cancel() {
     if (!this.job) return;
-    clearTimeout(this.job.watchdog);
+    this.job.timers.forEach(clearTimeout);
     this.job.reject(new AbortError());
     this.job = null;
     this.halt();
@@ -174,12 +228,12 @@ export class StockfishEngine {
       }, 2000);
     });
     this.stopping = stopping;
-    this.worker.postMessage('stop');
+    this.transport.post('stop');
   }
 
   terminate() {
     this.cancel();
-    this.worker.terminate();
+    this.transport.terminate();
   }
 }
 
@@ -196,27 +250,29 @@ export function defaultPoolSize(): number {
 export class EnginePool {
   private engines: StockfishEngine[] = [];
 
-  constructor(private size = defaultPoolSize()) {}
+  constructor(
+    private size = defaultPoolSize(),
+    private create: () => StockfishEngine = () => new StockfishEngine(),
+  ) {}
 
   private async ensure() {
     if (this.engines.length >= this.size) return;
     await prefetchEngine();
-    while (this.engines.length < this.size) this.engines.push(new StockfishEngine());
+    while (this.engines.length < this.size) this.engines.push(this.create());
   }
 
   /**
-   * Analyse every FEN. `onResult` fires as each position completes (out of
-   * order). Resolves with results in input order.
+   * Run every job. `onResult` fires as each one completes (out of order).
+   * Resolves with results in input order.
    */
   async analyseAll(
-    fens: string[],
-    limits: SearchLimits,
+    jobs: SearchJob[],
     onResult: (index: number, result: PositionAnalysis) => void,
     signal?: AbortSignal,
   ): Promise<PositionAnalysis[]> {
     await this.ensure();
     if (signal?.aborted) throw new AbortError();
-    const results: PositionAnalysis[] = new Array(fens.length);
+    const results: PositionAnalysis[] = new Array(jobs.length);
     let next = 0;
 
     let stopped = false;
@@ -227,9 +283,9 @@ export class EnginePool {
     signal?.addEventListener('abort', stopAll, { once: true });
 
     const run = async (engine: StockfishEngine) => {
-      while (next < fens.length && !stopped) {
+      while (next < jobs.length && !stopped) {
         const i = next++;
-        const result = await engine.analyse(fens[i], limits);
+        const result = await engine.run(jobs[i]);
         if (stopped) return;
         results[i] = result;
         onResult(i, result);

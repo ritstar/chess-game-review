@@ -2,10 +2,39 @@ import type { SearchLimits } from '@/lib/engine/stockfish';
 
 export type AnalysisDepth = 'fast' | 'standard' | 'deep';
 
-export const DEPTH_PRESETS: Record<AnalysisDepth, SearchLimits & { label: string; hint: string }> = {
-  fast: { depth: 12, moveTimeMs: 600, multiPv: 3, label: 'Fast', hint: 'Depth 12 · quick overview' },
-  standard: { depth: 16, moveTimeMs: 1500, multiPv: 3, label: 'Standard', hint: 'Depth 16 · recommended' },
-  deep: { depth: 20, moveTimeMs: 4000, multiPv: 3, label: 'Deep', hint: 'Depth 20 · slower, most accurate' },
+export interface AnalysisPreset {
+  label: string;
+  hint: string;
+  /** First pass: every position. */
+  search: SearchLimits;
+  /** Second pass: the moments that decide the review, searched again deeper. */
+  deep: SearchLimits;
+  /** At most this many moves get the deeper second look. */
+  deepMoves: number;
+}
+
+export const DEPTH_PRESETS: Record<AnalysisDepth, AnalysisPreset> = {
+  fast: {
+    label: 'Fast',
+    hint: 'Depth 12, key moves checked at 16 · quick overview',
+    search: { depth: 12, nodes: 300_000, moveTimeMs: 4000, multiPv: 3 },
+    deep: { depth: 16, nodes: 800_000, moveTimeMs: 8000, multiPv: 3 },
+    deepMoves: 8,
+  },
+  standard: {
+    label: 'Standard',
+    hint: 'Depth 16, key moves checked at 20 · recommended',
+    search: { depth: 16, nodes: 800_000, moveTimeMs: 8000, multiPv: 3 },
+    deep: { depth: 20, nodes: 1_500_000, moveTimeMs: 12000, multiPv: 3 },
+    deepMoves: 14,
+  },
+  deep: {
+    label: 'Deep',
+    hint: 'Depth 20, key moves checked at 24 · slower, strongest',
+    search: { depth: 20, nodes: 2_000_000, moveTimeMs: 15000, multiPv: 3 },
+    deep: { depth: 24, nodes: 6_000_000, moveTimeMs: 40000, multiPv: 3 },
+    deepMoves: 24,
+  },
 };
 
 export type BoardTheme = 'green' | 'wood' | 'brown' | 'blue' | 'gray';
@@ -41,7 +70,7 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 /** Bump when classification logic changes so stale cached reviews are ignored. */
-export const ANALYSIS_VERSION = 2;
+export const ANALYSIS_VERSION = 3;
 
 const KEY = 'chess-review:settings';
 

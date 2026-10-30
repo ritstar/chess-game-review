@@ -1,3 +1,4 @@
+import type { PhaseGrade } from './phases';
 import type { PositionAnalysis, Score } from '@/lib/engine/uci';
 
 export type Classification =
@@ -86,6 +87,8 @@ export interface MoveReview {
 
 export interface PlayerSummary {
   accuracy: number | null;
+  /** Estimated performance rating for this game (see `estimateRating`). */
+  rating: number | null;
   acpl: number;
   counts: Record<Classification, number>;
 }
@@ -100,5 +103,7 @@ export interface GameReview {
   opening?: { eco: string; name: string };
   /** Indices of the moves where the game turned. */
   keyMoments: number[];
+  /** Opening / middlegame / endgame grades, once the review is complete. */
+  phases: PhaseGrade[];
   complete: boolean;
 }

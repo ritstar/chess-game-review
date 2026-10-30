@@ -13,6 +13,7 @@ import {
   type MoveReview,
   type PlayerSummary,
 } from './types';
+import { estimateRating, phaseGrades } from './phases';
 import { gameAccuracy, moveAccuracy, winPercent } from './winning';
 
 /* ── Thresholds ───────────────────────────────────────────────────────────
@@ -24,12 +25,13 @@ const EXCELLENT = 2;
 const GOOD = 5;
 const INACCURACY = 10;
 const MISTAKE = 20;
+export const BANDS = [EXCELLENT, GOOD, INACCURACY, MISTAKE];
 
 /** Win% beyond which the game is considered decided. */
 const DECIDED_WIN = 90;
 
 /** A "great" move: every alternative is at least a mistake. */
-const GREAT_GAP = 10;
+export const GREAT_GAP = 10;
 /** Brilliant sacrifices aren't awarded when already completely winning. */
 const BRILLIANT_MAX_WIN_BEFORE = 97;
 const BRILLIANT_MIN_WIN_AFTER = 50;
@@ -117,6 +119,8 @@ export interface Classified {
   sacrifice: ReturnType<typeof sacrificedMaterial>;
 }
 
+const bestMoverCp = (before: PositionAnalysis) => scoreToCp(before.lines[0]?.score ?? { cp: 0 });
+
 /** Score of the played move from the mover's POV. */
 function playedMoverCp(input: ClassifyInput): number {
   const { ply, before, after } = input;
@@ -125,6 +129,8 @@ function playedMoverCp(input: ClassifyInput): number {
   // consistent and avoids "the best move lost 0.1" noise between searches.
   const same = before.lines.find((l) => l.pv[0] === ply.uci);
   if (same) return scoreToCp(same.score);
+  // Otherwise the played move searched on its own from the same position.
+  if (before.played?.pv[0] === ply.uci) return Math.min(scoreToCp(before.played.score), bestMoverCp(before));
   const terminal = terminalEval(after.fen);
   if (terminal) return ply.color === 'w' ? terminal.cp : -terminal.cp;
   const top = after.lines[0];
@@ -139,7 +145,9 @@ export function classifyMove(input: ClassifyInput): Classified {
   const winBest = winPercent(bestCp);
   const winPlayed = winPercent(playedCp);
   const winLoss = Math.max(0, winBest - winPlayed);
-  const isTop = best?.pv[0] === ply.uci;
+  // Moves the engine scores exactly as well as its first choice are best too
+  // (two ways to mate, symmetrical recaptures, dead-drawn positions).
+  const isTop = best?.pv[0] === ply.uci || (!!best && playedCp >= bestCp && before.lines.some((l) => l.pv[0] === ply.uci));
   const legalMoves = new Chess(ply.fenBefore).moves().length;
 
   const result = (classification: Classification, sacrifice: Classified['sacrifice'] = null): Classified => ({
@@ -364,8 +372,10 @@ export function buildReview(
     const counts = emptyCounts();
     own.forEach((m) => counts[m.classification]++);
     const wins = evals.map((e) => e?.win ?? NaN);
+    const accuracy = complete ? gameAccuracy(wins, color, firstMover) : null;
     return {
-      accuracy: complete ? gameAccuracy(wins, color, firstMover) : null,
+      accuracy,
+      rating: estimateRating(accuracy, own.length),
       acpl: own.length ? Math.round(own.reduce((a, m) => a + m.cpLoss, 0) / own.length) : 0,
       counts,
     };
@@ -379,6 +389,7 @@ export function buildReview(
     black: summary('b'),
     opening: detectOpening(plies, book),
     keyMoments: keyMoments(moves),
+    phases: complete ? phaseGrades(plies, moves, theory) : [],
     complete,
   };
 }

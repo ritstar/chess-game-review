@@ -10,7 +10,7 @@ import type { PlyRecord } from '@/lib/games/pgn';
 import { DEPTH_PRESETS, type AnalysisDepth } from '@/lib/settings';
 
 /** Keep deepening while the user looks at a position, within reason for battery life. */
-const LIVE_LIMITS: SearchLimits = { depth: 22, moveTimeMs: 15000, multiPv: 3 };
+const LIVE_LIMITS: SearchLimits = { depth: 22, nodes: 50_000_000, moveTimeMs: 15000, multiPv: 3 };
 
 export const exploredKey = (ply: PlyRecord) => `${ply.fenBefore}|${ply.uci}`;
 
@@ -51,7 +51,7 @@ export function useExplorer({ ply, prevPly, prevClassification, known, depth, pe
     if (!ply) return;
     let cancelled = false;
     const engine = (engineRef.current ??= new StockfishEngine());
-    const preset = DEPTH_PRESETS[depth];
+    const preset = DEPTH_PRESETS[depth].search;
     const lookup = (fen: string) => snapshots.current.get(fen) ?? context.current.known.get(fen) ?? null;
 
     const classify = async () => {
@@ -80,7 +80,7 @@ export function useExplorer({ ply, prevPly, prevClassification, known, depth, pe
     const run = async () => {
       // The position before the move needs a review-quality search too.
       if (!lookup(ply.fenBefore)) {
-        const before = await engine.analyse(ply.fenBefore, preset);
+        const before = await engine.run({ fen: ply.fenBefore, limits: preset, played: ply.uci });
         snapshots.current.set(ply.fenBefore, before);
       }
       if (cancelled) return;

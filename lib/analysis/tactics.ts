@@ -178,6 +178,8 @@ export function detectFork(fen: string, uci: string): Fork | null {
   }
   const attacker = move.promotion ?? move.piece;
   const victim = move.color === 'w' ? 'b' : 'w';
+  // A forking piece that can simply be taken isn't forking anything.
+  if (staticExchange(chess.fen(), move.to) > 0) return null;
   const targets: Fork['targets'] = [];
   for (const row of chess.board()) {
     for (const p of row) {

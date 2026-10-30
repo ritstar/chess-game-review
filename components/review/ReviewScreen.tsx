@@ -23,6 +23,7 @@ import { Chess, DEFAULT_POSITION } from 'chess.js';
 import { useExplorer } from '@/hooks/useExplorer';
 import { useGameReview } from '@/hooks/useGameReview';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import type { AnalysisStage } from '@/lib/analysis/pipeline';
 import { evalPoint } from '@/lib/analysis/review';
 import { detectFork, detectThreats } from '@/lib/analysis/tactics';
 import { CLASSIFICATION_LABEL, type Classification, type GameReview, type MoveReview } from '@/lib/analysis/types';
@@ -70,11 +71,59 @@ function article(c: Classification) {
   return /^[aeiou]/i.test(CLASSIFICATION_LABEL[c]) ? 'an' : 'a';
 }
 
-function summaryMessage(game: GameRecord, review: GameReview | null, analyzing: boolean, progress: number): CoachMessage {
-  if (!review?.complete) {
+const GRADE_RANK: Partial<Record<Classification, number>> = {
+  brilliant: 7,
+  best: 6,
+  book: 5,
+  excellent: 5,
+  good: 4,
+  inaccuracy: 3,
+  mistake: 2,
+  blunder: 1,
+};
+
+/** "Your opening was excellent, but the endgame needs work." */
+function phaseRemark(review: GameReview, me: 'w' | 'b'): string | null {
+  const graded = review.phases
+    .map((p) => ({ phase: p.phase, grade: me === 'w' ? p.white : p.black }))
+    .filter((p): p is { phase: typeof p.phase; grade: Classification } => !!p.grade && p.grade !== 'book');
+  if (!graded.length) return null;
+  const rank = (c: Classification) => GRADE_RANK[c] ?? 4;
+  const best = graded.reduce((a, b) => (rank(b.grade) > rank(a.grade) ? b : a));
+  const worst = graded.reduce((a, b) => (rank(b.grade) < rank(a.grade) ? b : a));
+  const words: Partial<Record<Classification, string>> = {
+    brilliant: 'brilliant',
+    best: 'nearly perfect',
+    excellent: 'excellent',
+    good: 'solid',
+    inaccuracy: 'shaky',
+    mistake: 'shaky',
+    blunder: 'rough',
+  };
+  const word = (c: Classification) => words[c] ?? 'solid';
+  if (rank(worst.grade) >= 5) return `Every phase of your game was ${word(worst.grade)}.`;
+  if (best.phase === worst.phase || rank(best.grade) < 4) return `Your ${worst.phase} is where the game got away from you.`;
+  return `Your ${best.phase} was ${word(best.grade)}, but the ${worst.phase} is where to improve.`;
+}
+
+function summaryMessage(
+  game: GameRecord,
+  review: GameReview | null,
+  analyzing: boolean,
+  progress: number,
+  stage: AnalysisStage,
+): CoachMessage {
+  if (analyzing || !review?.complete) {
+    const deep = stage === 'deep';
     return {
-      headline: analyzing ? `Analyzing your game… ${Math.round(progress * 100)}%` : 'Getting ready…',
-      details: ['Stockfish is checking every move. You can start stepping through already.'],
+      headline: analyzing
+        ? `${deep ? 'Double-checking key moments' : 'Analyzing your game'}… ${Math.round(progress * 100)}%`
+        : 'Getting ready…',
+      details: [
+        deep
+          ? 'Searching the moves that matter deeper, so every blunder and great move is confirmed.'
+          : 'Stockfish is checking every move. You can start stepping through already.',
+      ],
       progress: analyzing ? progress : undefined,
     };
   }
@@ -106,6 +155,8 @@ function summaryMessage(game: GameRecord, review: GameReview | null, analyzing: 
     details: [
       `You played with ${mine.accuracy?.toFixed(1)}% accuracy${errors.length ? `, with ${listJoin(errors as string[])}` : ' and no serious errors'}.`,
       ...(highlights ? [highlights] : []),
+      ...(phaseRemark(review, me) ? [phaseRemark(review, me)!] : []),
+      ...(mine.rating ? [`That's the kind of game a ${mine.rating}-rated player plays.`] : []),
       ...(opening ? [opening] : []),
     ],
   };
@@ -113,7 +164,7 @@ function summaryMessage(game: GameRecord, review: GameReview | null, analyzing: 
 
 export function ReviewScreen({ game, settings, onSettingsChange, onBack }: ReviewScreenProps) {
   const [runId, setRunId] = useState(0);
-  const { parsed, review, status, progress, error } = useGameReview(game, settings.depth, runId);
+  const { parsed, review, status, progress, error, stage } = useGameReview(game, settings.depth, runId);
   const plies = useMemo(() => parsed?.plies ?? [], [parsed]);
   const startFen = parsed?.startFen ?? DEFAULT_POSITION;
   const reducer = useMemo(() => navReducer(plies, startFen), [plies, startFen]);
@@ -408,7 +459,7 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
   const opening = review?.opening?.name ?? game.opening;
 
   const coach: CoachMessage = (() => {
-    if (mode === 'summary') return summaryMessage(game, review, analyzing, progress);
+    if (mode === 'summary') return summaryMessage(game, review, analyzing, progress, stage);
     if (retry) {
       const target = plies[retry.index];
       const c = review?.moves[retry.index]?.classification;
@@ -721,7 +772,7 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
                 <div className="flex items-center justify-between text-[12px] text-muted">
                   <span className="flex items-center gap-2">
                     <span className="size-3 animate-spin rounded-full border-2 border-surface-3 border-t-accent" />
-                    Analyzing with Stockfish · {DEPTH_PRESETS[settings.depth].label.toLowerCase()}
+                    {stage === 'deep' ? 'Double-checking key moments' : 'Analyzing with Stockfish'} · {DEPTH_PRESETS[settings.depth].label.toLowerCase()}
                   </span>
                   <span className="tabular-nums">{Math.round(progress * 100)}%</span>
                 </div>

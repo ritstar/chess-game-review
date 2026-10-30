@@ -25,6 +25,13 @@ export interface PositionAnalysis {
   depth: number;
   /** Lines sorted by rank. lines[0] is the engine's best move. */
   lines: EngineLine[];
+  /**
+   * The move actually played from this position, searched on its own
+   * (`searchmoves`) to the same limits when it isn't one of `lines`. Lets the
+   * played move be compared with the best one inside a single search instead
+   * of across two different positions.
+   */
+  played?: EngineLine;
 }
 
 const UCI_MOVE = /^[a-h][1-8][a-h][1-8][qrbn]?$/;
