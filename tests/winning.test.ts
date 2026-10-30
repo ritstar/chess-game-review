@@ -20,14 +20,14 @@ describe('accuracy', () => {
   });
 
   it('drops steeply with win% lost', () => {
-    expect(moveAccuracy(60, 55)).toBeGreaterThan(80);
+    expect(moveAccuracy(60, 58)).toBeGreaterThan(80);
     expect(moveAccuracy(80, 20)).toBeLessThan(10);
   });
 
   it('scores each side of a game independently', () => {
     // White plays perfectly; Black throws the game on their only move.
-    const wins = [50, 52, 95];
-    expect(gameAccuracy(wins, 'w')).toBeGreaterThan(95);
-    expect(gameAccuracy(wins, 'b')).toBeLessThan(20);
+    const cps = [0, 20, 1500];
+    expect(gameAccuracy(cps, 'w')).toBeGreaterThan(95);
+    expect(gameAccuracy(cps, 'b')).toBeLessThan(20);
   });
 });

@@ -21,7 +21,13 @@ export function materialBalance(fen: string): number {
 }
 
 function captures(chess: Chess, square: Square): Move[] {
-  return chess.moves({ verbose: true }).filter((m) => m.to === square && m.captured);
+  // Only pieces that attack the square can capture on it; generating just
+  // their moves (legality still checked) is far cheaper than every move.
+  const out: Move[] = [];
+  for (const from of chess.attackers(square, chess.turn())) {
+    for (const m of chess.moves({ square: from, verbose: true })) if (m.to === square && m.captured) out.push(m);
+  }
+  return out;
 }
 
 /**
@@ -85,12 +91,12 @@ export function hangingPieces(fen: string, color: 'w' | 'b'): HangingPiece[] {
  * couldn't before. Pawn-only sacrifices are ignored by default.
  */
 export function sacrificedMaterial(fenBefore: string, fenAfter: string, mover: 'w' | 'b'): HangingPiece | null {
+  const hanging = hangingPieces(fenAfter, mover).filter((h) => h.piece !== 'p');
+  if (!hanging.length) return null;
   // What the opponent could already grab before the move (if it were their turn).
-  const before = new Chess(fenBefore);
-  const flipped = flipTurn(before.fen());
+  const flipped = flipTurn(fenBefore);
   const alreadyHanging = new Map((flipped ? hangingPieces(flipped, mover) : []).map((h) => [h.square, h.loss]));
 
-  const hanging = hangingPieces(fenAfter, mover);
   // Material gained by the mover on this move offsets what they leave hanging.
   const gained = Math.abs(materialBalance(fenAfter) - materialBalance(fenBefore));
 

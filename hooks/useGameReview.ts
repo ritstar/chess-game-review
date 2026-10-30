@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { buildReview } from '@/lib/analysis/review';
+import { buildReview, type ReviewMemo } from '@/lib/analysis/review';
 import { loadOpeningBook, type OpeningBook } from '@/lib/analysis/openings';
-import type { GameReview, MoveReview } from '@/lib/analysis/types';
+import type { GameReview } from '@/lib/analysis/types';
 import { cacheGet, cacheSet } from '@/lib/cache';
 import { analyseGame, type AnalysisStage } from '@/lib/analysis/pipeline';
 import { AbortError, EnginePool } from '@/lib/engine/stockfish';
@@ -72,7 +72,7 @@ export function useGameReview(game: GameRecord | null, depth: AnalysisDepth, run
     const controller = new AbortController();
     const fens = [parsed.game.startFen, ...plies.map((p) => p.fenAfter)];
     const key = `${game.id}:${depth}:v${ANALYSIS_VERSION}`;
-    const memo = new Map<number, MoveReview>();
+    const memo: ReviewMemo = new Map();
     let book: OpeningBook = {};
 
     const run = async () => {
@@ -96,9 +96,6 @@ export function useGameReview(game: GameRecord | null, depth: AnalysisDepth, run
         scheduled = false;
         if (controller.signal.aborted || !latest) return;
         const { positions, progress, stage } = latest;
-        // The second pass rewrites positions anywhere in the game, which can
-        // change neighbouring ratings, so finished moves are only reusable in pass 1.
-        if (stage === 'deep') memo.clear();
         setState((s) => ({
           ...s,
           review: buildReview(plies, positions, book, memo, game.perspective),
@@ -126,7 +123,6 @@ export function useGameReview(game: GameRecord | null, depth: AnalysisDepth, run
       });
       if (controller.signal.aborted) return;
 
-      memo.clear();
       const review = buildReview(plies, final, book, memo, game.perspective);
       setState({ review, status: 'done', progress: 1, error: null, fromCache: false, stage: 'deep' });
       void cacheSet(key, final);

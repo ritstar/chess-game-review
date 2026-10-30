@@ -87,8 +87,6 @@ export interface MoveReview {
 
 export interface PlayerSummary {
   accuracy: number | null;
-  /** Estimated performance rating for this game (see `estimateRating`). */
-  rating: number | null;
   acpl: number;
   counts: Record<Classification, number>;
 }

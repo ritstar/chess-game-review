@@ -13,8 +13,8 @@ import {
   type MoveReview,
   type PlayerSummary,
 } from './types';
-import { estimateRating, phaseGrades } from './phases';
-import { gameAccuracy, moveAccuracy, winPercent } from './winning';
+import { phaseGrades } from './phases';
+import { accuracyWin, gameAccuracy, moveAccuracy, winPercent } from './winning';
 
 /* ── Thresholds ───────────────────────────────────────────────────────────
  * Expected-points loss (win% / 100) bands, matching Chess.com's published
@@ -279,6 +279,7 @@ export function reviewMove(input: ReviewMoveInput): MoveReview {
   const evalBefore = evalPoint(before)!;
   const evalAfter = evalPoint(after)!;
   const moverWin = (e: EvalPoint) => (ply.color === 'w' ? e.win : 100 - e.win);
+  const moverAccuracyWin = (e: EvalPoint) => accuracyWin(ply.color === 'w' ? e.cp : -e.cp);
   const classified = classifyMove({
     ply,
     before,
@@ -290,31 +291,52 @@ export function reviewMove(input: ReviewMoveInput): MoveReview {
   });
 
   const best = before.lines[0];
-  const bestLine = best ? uciLineToSan(before.fen, best.pv, 10) : [];
-  const replyLine = after.lines[0] ? uciLineToSan(after.fen, after.lines[0].pv, 10) : [];
-
-  return {
+  const review = {
     index: input.index,
     classification: classified.classification,
     winLoss: classified.winLoss,
     cpLoss: Math.min(1000, Math.max(0, Math.min(classified.bestCp, 1000) - Math.min(classified.playedCp, 1000))),
-    accuracy: moveAccuracy(moverWin(evalBefore), moverWin(evalAfter)),
+    accuracy: moveAccuracy(moverAccuracyWin(evalBefore), moverAccuracyWin(evalAfter)),
     bestUci: best?.pv[0],
-    bestSan: bestLine[0],
-    bestLine,
-    replyLine,
-    explanation: explainMove({
+  } as MoveReview;
+
+  // Lines in SAN and the coach's words take real board work (chess.js move
+  // generation, tactics on three lines), and only the moves someone looks at
+  // need them: work them out on first read. The review is rebuilt many times
+  // while analysis streams in, so this keeps that cheap.
+  lazy(review, 'bestLine', () => (best ? uciLineToSan(before.fen, best.pv, 10) : []));
+  lazy(review, 'bestSan', () => review.bestLine[0]);
+  lazy(review, 'replyLine', () => (after.lines[0] ? uciLineToSan(after.fen, after.lines[0].pv, 10) : []));
+  lazy(review, 'explanation', () =>
+    explainMove({
       ply,
       classified,
       before,
       after,
-      bestLine,
-      replyLine,
+      bestLine: review.bestLine,
+      replyLine: review.replyLine,
       prevPly: input.prevPly,
       perspective: input.perspective,
       opening: classified.classification === 'book' ? lookupOpening(book, ply.fenAfter)?.name : undefined,
     }),
-  };
+  );
+  return review;
+}
+
+/** Define `key` as a getter that computes `compute()` once, on first read. */
+function lazy<T, K extends keyof T>(target: T, key: K, compute: () => T[K]) {
+  let value: T[K];
+  let done = false;
+  Object.defineProperty(target, key, {
+    enumerable: true,
+    get: () => {
+      if (!done) {
+        value = compute();
+        done = true;
+      }
+      return value;
+    },
+  });
 }
 
 /**
@@ -322,13 +344,16 @@ export function reviewMove(input: ReviewMoveInput): MoveReview {
  * call repeatedly while analysis streams in: moves are classified in game
  * order (each depends on the previous one), so only the contiguous analysed
  * prefix is reviewed. Pass the same `memo` between calls to avoid redoing
- * finished moves.
+ * finished moves: an entry is reused only while the analyses it was built
+ * from are unchanged, so positions re-searched later are picked up.
  */
+export type ReviewMemo = Map<number, { move: MoveReview; deps: unknown[] }>;
+
 export function buildReview(
   plies: PlyRecord[],
   positions: (PositionAnalysis | null)[],
   book: OpeningBook,
-  memo: Map<number, MoveReview> = new Map(),
+  memo: ReviewMemo = new Map(),
   perspective?: 'w' | 'b',
 ): GameReview {
   const evals = positions.map((p) => (p ? evalPoint(p) : null));
@@ -336,46 +361,45 @@ export function buildReview(
   const moves: (MoveReview | null)[] = [];
 
   for (let i = 0; i < plies.length; i++) {
-    const cached = memo.get(i);
-    if (cached) {
-      moves.push(cached);
-      continue;
-    }
     const before = positions[i];
     const after = positions[i + 1];
     if (!before || !after || !evals[i] || !evals[i + 1]) {
       while (moves.length < plies.length) moves.push(null);
       break;
     }
+    // Everything a move's rating depends on (see reviewMove).
+    const deps = [before, after, positions[i - 1], moves[i - 1]?.classification, theory[i]];
+    const cached = memo.get(i);
+    if (cached && cached.deps.every((d, k) => d === deps[k])) {
+      moves.push(cached.move);
+      continue;
+    }
     const prevMoverEval = i >= 1 ? evals[i - 1] : null;
-    moves.push(
-      reviewMove({
-        ply: plies[i],
-        index: i,
-        before,
-        after,
-        prevPly: plies[i - 1],
-        prevClassification: moves[i - 1]?.classification,
-        prevMoverEval,
-        isBook: theory[i],
-        book,
-        perspective,
-      }),
-    );
+    const move = reviewMove({
+      ply: plies[i],
+      index: i,
+      before,
+      after,
+      prevPly: plies[i - 1],
+      prevClassification: moves[i - 1]?.classification,
+      prevMoverEval,
+      isBook: theory[i],
+      book,
+      perspective,
+    });
+    memo.set(i, { move, deps });
+    moves.push(move);
   }
 
-  moves.forEach((m) => m && memo.set(m.index, m));
   const complete = positions.every(Boolean);
   const firstMover = plies[0]?.color ?? 'w';
   const summary = (color: 'w' | 'b'): PlayerSummary => {
     const own = moves.filter((m, i): m is MoveReview => !!m && plies[i].color === color);
     const counts = emptyCounts();
     own.forEach((m) => counts[m.classification]++);
-    const wins = evals.map((e) => e?.win ?? NaN);
-    const accuracy = complete ? gameAccuracy(wins, color, firstMover) : null;
+    const accuracy = complete ? gameAccuracy(evals.map((e) => e?.cp ?? NaN), color, firstMover) : null;
     return {
       accuracy,
-      rating: estimateRating(accuracy, own.length),
       acpl: own.length ? Math.round(own.reduce((a, m) => a + m.cpLoss, 0) / own.length) : 0,
       counts,
     };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { divideGame, estimateRating, gradeFor } from '@/lib/analysis/phases';
+import { divideGame, gradeFor } from '@/lib/analysis/phases';
 import { parseGame } from '@/lib/games/pgn';
 
 describe('phases', () => {
@@ -18,12 +18,5 @@ describe('phases', () => {
     expect(gradeFor(97)).toBe('best');
     expect(gradeFor(85)).toBe('good');
     expect(gradeFor(40)).toBe('blunder');
-  });
-
-  it('estimates a game rating that rises with accuracy', () => {
-    expect(estimateRating(95, 40)!).toBeGreaterThan(estimateRating(80, 40)!);
-    expect(estimateRating(50, 3)).toBeNull();
-    // Short games are pulled toward the middle.
-    expect(estimateRating(99, 10)!).toBeLessThan(estimateRating(99, 40)!);
   });
 });

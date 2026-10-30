@@ -15,17 +15,7 @@ interface SummaryPanelProps {
 
 const PHASE_LABEL: Record<Phase, string> = { opening: 'Opening', middlegame: 'Middlegame', endgame: 'Endgame' };
 
-function AccuracyCard({
-  name,
-  value,
-  rating,
-  color,
-}: {
-  name: string;
-  value: number | null | undefined;
-  rating: number | null | undefined;
-  color: 'w' | 'b';
-}) {
+function AccuracyCard({ name, value, color }: { name: string; value: number | null | undefined; color: 'w' | 'b' }) {
   return (
     <div className="flex flex-1 flex-col items-center gap-1.5 rounded-lg bg-surface-2 px-3 py-3">
       <span className="max-w-full truncate text-[13px] font-semibold text-muted">{name}</span>
@@ -37,11 +27,6 @@ function AccuracyCard({
       >
         {value == null ? <span className="inline-block w-10 opacity-50">—</span> : value.toFixed(1)}
       </span>
-      {rating != null && (
-        <span className="text-[12px] text-muted" title="Estimated from accuracy: how strong a player typically is when they play this accurately">
-          Game rating <span className="font-bold text-fg tabular-nums">{rating}</span>
-        </span>
-      )}
     </div>
   );
 }
@@ -54,8 +39,8 @@ export function SummaryPanel({ game, review, plies, onSelect, onStart }: Summary
       <div>
         <p className="text-[11px] font-bold tracking-wider text-subtle uppercase">Accuracy</p>
         <div className="mt-2 flex gap-2">
-          <AccuracyCard name={game.white.name} value={review?.white.accuracy} rating={review?.white.rating} color="w" />
-          <AccuracyCard name={game.black.name} value={review?.black.accuracy} rating={review?.black.rating} color="b" />
+          <AccuracyCard name={game.white.name} value={review?.white.accuracy} color="w" />
+          <AccuracyCard name={game.black.name} value={review?.black.accuracy} color="b" />
         </div>
       </div>
 

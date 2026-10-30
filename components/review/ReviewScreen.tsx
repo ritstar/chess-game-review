@@ -156,7 +156,6 @@ function summaryMessage(
       `You played with ${mine.accuracy?.toFixed(1)}% accuracy${errors.length ? `, with ${listJoin(errors as string[])}` : ' and no serious errors'}.`,
       ...(highlights ? [highlights] : []),
       ...(phaseRemark(review, me) ? [phaseRemark(review, me)!] : []),
-      ...(mine.rating ? [`That's the kind of game a ${mine.rating}-rated player plays.`] : []),
       ...(opening ? [opening] : []),
     ],
   };

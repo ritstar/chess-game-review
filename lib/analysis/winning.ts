@@ -1,14 +1,37 @@
 /**
  * Win-probability and accuracy maths.
  *
- * Win% uses the logistic model fitted by Lichess on real games
- * (https://lichess.org/page/accuracy). Accuracy follows the same published
- * method: per-move accuracy from win% lost, aggregated with a mix of a
- * volatility-weighted mean and a harmonic mean so one blunder in a sharp
- * position counts more than drift in a dead-equal one.
+ * Win% (used for move ratings) is the logistic model fitted by Lichess on
+ * real games (https://lichess.org/page/accuracy).
+ *
+ * Accuracy follows the same published method – per-move accuracy from win%
+ * lost, aggregated with a volatility-weighted mean and a harmonic mean, so one
+ * blunder in a sharp position counts more than drift in a dead-equal one – but
+ * with three constants refitted to match the accuracy Chess.com reports.
+ * Fitted on 120 player-games (club players around 1000–1600 and grandmaster
+ * blitz) with `scripts/benchmark.ts`: mean absolute error fell from 5.6 to 4.7
+ * points and the +4 point bias disappeared.
  */
 
 const K = 0.00368208;
+
+/** Accuracy constants fitted against Chess.com (see above). */
+export const ACCURACY_MODEL = {
+  /** Flatter than the rating curve: a +3 position isn't "won" yet, so slips there still count. */
+  winK: 0.0025,
+  /** How fast per-move accuracy falls with win% lost (Lichess: 0.0435). */
+  decay: 0.075,
+  /** Weight of the harmonic mean against the volatility-weighted mean (Lichess: 0.5). */
+  harmonicShare: 0.25,
+  /** Evaluations beyond ±15 pawns are all "completely winning". */
+  clampCp: 1500,
+};
+
+/** Win% on the accuracy model's curve, for a White-POV (or mover-POV) score. */
+export function accuracyWin(cp: number): number {
+  const c = Math.max(-ACCURACY_MODEL.clampCp, Math.min(ACCURACY_MODEL.clampCp, cp));
+  return 50 + 50 * (2 / (1 + Math.exp(-ACCURACY_MODEL.winK * c)) - 1);
+}
 
 /** Win probability for the side the score belongs to, 0–100. */
 export function winPercent(cp: number): number {
@@ -16,10 +39,10 @@ export function winPercent(cp: number): number {
   return 50 + 50 * (2 / (1 + Math.exp(-K * clamped)) - 1);
 }
 
-/** Accuracy of a single move given win% (mover's POV) before and after. */
+/** Accuracy of a single move given win% (mover's POV, see {@link accuracyWin}) before and after. */
 export function moveAccuracy(winBefore: number, winAfter: number): number {
   const loss = Math.max(0, winBefore - winAfter);
-  const raw = 103.1668100711649 * Math.exp(-0.04354415386753951 * loss) - 3.166924740191411;
+  const raw = 103.1668100711649 * Math.exp(-ACCURACY_MODEL.decay * loss) - 3.166924740191411;
   return Math.max(0, Math.min(100, raw + 1)); // +1 "uncertainty bonus", as Lichess does
 }
 
@@ -36,12 +59,14 @@ function harmonicMean(xs: number[]): number {
 /**
  * Game accuracy for one player.
  *
- * @param whiteWin win% from White's POV for every position: index 0 is the
- *   start position, index i is after ply i. Length = plies + 1.
+ * @param whiteCp evaluation in centipawns from White's POV for every
+ *   position (mate as a large value): index 0 is the start position, index i
+ *   is after ply i. Length = plies + 1.
  * @param color which player to score.
  * @param firstMover who moved at ply 1 ('w' unless the game starts from a FEN).
  */
-export function gameAccuracy(whiteWin: number[], color: 'w' | 'b', firstMover: 'w' | 'b' = 'w'): number | null {
+export function gameAccuracy(whiteCp: number[], color: 'w' | 'b', firstMover: 'w' | 'b' = 'w'): number | null {
+  const whiteWin = whiteCp.map(accuracyWin);
   const n = whiteWin.length - 1;
   if (n < 1) return null;
 
@@ -65,5 +90,5 @@ export function gameAccuracy(whiteWin: number[], color: 'w' | 'b', firstMover: '
   const totalWeight = accs.reduce((a, x) => a + x.weight, 0);
   const weighted = accs.reduce((a, x) => a + x.acc * x.weight, 0) / totalWeight;
   const harmonic = harmonicMean(accs.map((x) => x.acc));
-  return (weighted + harmonic) / 2;
+  return weighted * (1 - ACCURACY_MODEL.harmonicShare) + harmonic * ACCURACY_MODEL.harmonicShare;
 }

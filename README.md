@@ -62,11 +62,12 @@ Great and Brilliant moves get a Chess.com-style pop on the board, with a chime.
 </td>
 <td width="50%" valign="top">
 
-### 🗣️ Explanations, not just symbols
-> *"Allows a fork: Ne3 attacks your queen on d1 and rook on f1"*
-> *"Missed mate in 2"* · *"Drops a pawn: 43… Bxb4 44. cxb4 Rxb4"*
+### 🗣️ A coach that explains, like Chess.com's
+> *"Qf6+ is a great move. This skewers your king and rook, winning a piece."*
+> *"Nf6 is a miss. This allows Qh4, which pins your knight to the rook."*
+> *"d3 is good. Better was d4, claiming space in the center."*
 
-Tactical checks on the engine lines find forks, hanging pieces, threats and material swings, and the coach tells you about them, along with the best line and the refutation.
+The coach recognizes what a move actually does: forks, pins, skewers, discovered attacks, mate threats, hanging pieces, trades, recaptures, development, castling, passed pawns, open files and king activity. It then tells you why your move was good or bad, and what the best move would have done instead.
 
 </td>
 </tr>
@@ -80,7 +81,7 @@ Drag a piece (or tap one and then a square) at any point. A live Stockfish rates
 <td valign="top">
 
 ### 📊 The whole game at a glance
-Accuracy for both players (the Lichess method), an evaluation graph with key moments marked (tap or drag it to jump around), the top 3 engine lines, opening names from a 3,800-line book, clocks and captured material.
+Accuracy for both players, calibrated to match Chess.com's numbers (see [How close to Chess.com?](#-how-close-to-chesscom)). Opening, middlegame and endgame grades for each player, the key moments, an evaluation graph (tap or drag it to jump around), the top 3 engine lines, opening names from a 3,800-line book, clocks and captured material.
 
 </td>
 </tr>
@@ -102,7 +103,7 @@ Distinct sounds for moves, captures, checks, castling and promotion, all generat
 <td valign="top">
 
 ### ⚡ Fast
-Positions are analysed in parallel by a pool of Stockfish WASM workers, so a 40-move game usually takes 10–30 seconds. Finished reviews are cached in IndexedDB, so reopening a game is instant.
+Positions are analysed in parallel by a pool of Stockfish WASM workers, and you can start stepping through while the review is still running. A 40-move game usually takes 20–40 seconds, including the deeper second pass over its key moments. Finished reviews are cached in IndexedDB, so reopening a game is instant.
 
 </td>
 <td valign="top">
@@ -132,14 +133,30 @@ Everything runs in your browser. Your games go straight from the Chess.com / Lic
 
 | Step | What happens |
 |---|---|
-| **Engine** | Each position is searched once with MultiPV 3 (Standard: depth 16, capped at 1.5 s), spread across up to 4 single-threaded Stockfish 17.1 workers. |
+| **Engine, pass 1** | Every position gets a MultiPV 3 search (Standard: depth 16 or 800k nodes), spread across up to 4 single-threaded Stockfish 17.1 workers. Each search starts with a cleared hash and a node limit, so **the same game gets the same review on every device**. |
+| **Played move** | When the move you played isn't one of the engine's top three, it is searched on its own (`searchmoves`) from the same position and to the same limits. Best and played moves are compared inside one search, not against a separate search of the next position. That makes "Best", "Excellent" and "Inaccuracy" much more reliable. |
+| **Engine, pass 2** | The moves that decide the review are searched again, deeper (Standard: depth 20): every inaccuracy, mistake, miss and blunder, every Great or Brilliant candidate, and any move sitting on a rating boundary. |
 | **Win %** | Scores become winning chances with the logistic model Lichess fitted on real games. |
 | **Classification** | Based on **expected points lost** against the best move, using Chess.com's published bands: ≤2% Excellent, ≤5% Good, ≤10% Inaccuracy, ≤20% Mistake, >20% Blunder. A +0.5 → −1.0 swing is serious; +9 → +7.5 isn't. |
-| **Best / Great** | **Best** is the engine's top move. **Great** is the top move when every alternative is at least a mistake. Plain recaptures don't count. |
+| **Best / Great** | **Best** is the engine's top move, or a move it scores exactly as well. **Great** is the top move when every alternative is at least a mistake. Plain recaptures don't count. |
 | **Brilliant** | A sound **sacrifice**: it leaves material the opponent can win by static exchange (legal-move SEE, so pins and checks count), it is still (near-)best, and you weren't already completely winning. |
 | **Miss** | You failed to punish your opponent's mistake or blunder. |
 | **Book** | The position is in the [Lichess openings](https://github.com/lichess-org/chess-openings) dataset, including transpositions. |
-| **Accuracy** | The Lichess method: per-move accuracy from win % lost, combined as a volatility-weighted mean and a harmonic mean. |
+| **Coach** | Board-level motif detection on the played move, the best move and the opponent's best reply, phrased the way Chess.com's coach talks: what your move did, what it allowed, and what the best move would have done. |
+| **Phases** | The game is split into opening, middlegame and endgame (the rules Lichess uses: pieces traded or developed off the back rank; six or fewer pieces left). Each player gets a grade per phase from their move accuracy there. |
+| **Accuracy** | The Lichess method (per-move accuracy from win % lost, combined as a volatility-weighted mean and a harmonic mean), with three constants refitted so the result matches Chess.com's accuracy. |
+
+## 🎯 How close to Chess.com?
+
+Chess.com's API includes its own accuracy score for every game that was reviewed there. `scripts/benchmark.ts` runs this app's real pipeline, with the same Stockfish build and the same two passes, on those games and compares the results:
+
+| Games (player-games) | Average difference from Chess.com | Within 5 points |
+|---|---|---|
+| Club players, ~1000–1600 (72) | 5.4 points | 62% |
+| Grandmaster blitz (48) | 3.7 points | 75% |
+| All (120) | **4.7 points**, no overall bias | 67% |
+
+With the plain Lichess formula, the average gap was 5.6 points, and our accuracy read 4 points high. Chess.com's exact formula isn't public, so a few points of disagreement on single games is expected.
 
 ## 🚀 Run it locally
 
@@ -157,6 +174,7 @@ npm run dev        # → http://localhost:3000
 | `npm run build` / `npm start` | Production build and server |
 | `npm run check` | Lint, typecheck and tests |
 | `npm test` | Unit tests plus an end-to-end test that runs the real Stockfish build in Node |
+| `npm run benchmark -- <archive.json…>` | Compare our accuracy with Chess.com's on games from monthly archive files (see `scripts/benchmark.ts`) |
 | `npm run build:openings [dir]` | Regenerate `public/data/openings.json` from the Lichess openings TSVs |
 
 <details>
@@ -169,11 +187,12 @@ components/
   home/             Game source picker and game list
   review/           Board, eval bar and graph, move list, coach, engine lines, summary
 hooks/
-  useGameReview.ts  Runs the engine pool, streams results and caches finished reviews
+  useGameReview.ts  Runs the two-pass analysis, streams results and caches finished reviews
   useExplorer.ts    Live engine and ratings for moves tried on the board
 lib/
   engine/           UCI parsing and the Stockfish worker pool
-  analysis/         Classification, explanations, tactics (SEE, forks), accuracy, openings
+  analysis/         Two-pass pipeline, classification, motifs and coach text, tactics (SEE),
+                    phases, accuracy, openings
   games/            Chess.com / Lichess API clients and PGN parsing
   review/           Board navigation state (game moves and explored lines)
   sound.ts, haptics.ts  Board feedback
