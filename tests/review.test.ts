@@ -30,7 +30,7 @@ describe('classifyMove', () => {
     // Daniil_Kolbasenk0–Hikaru 2026: 40...Rxg3+! 41. Kxg3 Rc3+ wins the queen (+13.7);
     // the next-best move keeps "only" +3.3. Chess.com rates it brilliant.
     const fen = '2r4k/6p1/4Q2p/3p3P/3P2P1/1P3rBK/3q4/4R3 b - - 1 40';
-    const ply = makePly(fen, 'Rxg3+', 79);
+    const ply = makePly(fen, 'Rxg3+', 79)!;
     const line = (pv: string[], cp: number) => ({ rank: 1, depth: 20, score: { cp }, pv });
     const before: PositionAnalysis = {
       fen,
