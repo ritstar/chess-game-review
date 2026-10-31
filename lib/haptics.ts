@@ -19,25 +19,40 @@ const PATTERNS: Record<HapticKind, number | number[]> = {
   error: 70,
 };
 
-const isIOS = () =>
+export const isIOS = () =>
   typeof navigator !== 'undefined' &&
   (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 
-function iosTick() {
+export type IosTickMethod = 'head' | 'body';
+
+/**
+ * Toggle a throwaway native switch. 'head': hidden label in <head> (the
+ * well-known trick). 'body': a rendered but invisible label in <body>, for
+ * iOS versions that only react to switches that are actually laid out.
+ */
+export function iosTick(method: IosTickMethod = 'head') {
   try {
     const label = document.createElement('label');
     label.ariaHidden = 'true';
-    label.style.display = 'none';
+    if (method === 'head') label.style.display = 'none';
+    else label.style.cssText = 'position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0.01;overflow:hidden;pointer-events:none';
     const input = document.createElement('input');
     input.type = 'checkbox';
     input.setAttribute('switch', '');
     label.appendChild(input);
-    document.head.appendChild(label);
+    (method === 'head' ? document.head : document.body).appendChild(label);
     label.click();
-    document.head.removeChild(label);
+    label.remove();
   } catch {
     // ignore
   }
+}
+
+/** iOS version from the user agent, e.g. "18.1"; null elsewhere. */
+export function iosVersion(): string | null {
+  if (typeof navigator === 'undefined') return null;
+  const m = navigator.userAgent.match(/OS (\d+)[._](\d+)/);
+  return isIOS() && m ? `${m[1]}.${m[2]}` : null;
 }
 
 /** True where haptics only work synchronously inside a tap/click handler (iPhone, iPad). */

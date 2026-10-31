@@ -2,7 +2,7 @@
 
 import { Settings as SettingsIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { hapticsSupported } from '@/lib/haptics';
+import { hapticsSupported, iosTick, iosVersion, isIOS } from '@/lib/haptics';
 import { BOARD_THEMES, DEPTH_PRESETS, type AnalysisDepth, type BoardTheme, type Settings } from '@/lib/settings';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +27,57 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
     >
       <span className={cn('absolute top-0.5 left-0.5 size-6 rounded-full bg-white shadow transition-transform', checked && 'translate-x-5')} />
     </button>
+  );
+}
+
+/**
+ * iPhone haptics rely on an unofficial Safari behaviour that varies between
+ * iOS versions. These buttons try each way of producing the tick, so a user
+ * can report which one their phone feels.
+ */
+function HapticsTest() {
+  const [lastTried, setLastTried] = useState<string | null>(null);
+  const tryIt = (name: string, run: () => void) => () => {
+    run();
+    setLastTried(name);
+  };
+  const row = 'flex min-h-11 items-center justify-between gap-3 rounded-lg bg-surface-2 px-3 py-2 text-left text-[14px]';
+  return (
+    <div className="space-y-2 border-t border-line pt-3">
+      <p className="text-[11px] font-bold tracking-wider text-subtle uppercase">Haptics test (iPhone)</p>
+      <p className="text-[12px] text-subtle">
+        Browser reports iOS {iosVersion() ?? 'unknown'}. Tap each one and note which you feel. Needs Settings › Sounds &amp; Haptics › System Haptics on.
+      </p>
+      <button type="button" className={cn(row, 'w-full')} onClick={tryIt('A', () => iosTick('head'))}>
+        <span>A · Hidden switch</span>
+        <span className="text-subtle">Tap</span>
+      </button>
+      <button type="button" className={cn(row, 'w-full')} onClick={tryIt('B', () => iosTick('body'))}>
+        <span>B · On-screen hidden switch</span>
+        <span className="text-subtle">Tap</span>
+      </button>
+      <label className={cn(row, 'relative w-full')}>
+        <span>C · Invisible switch under your finger</span>
+        <span className="text-subtle">Tap</span>
+        <input
+          type="checkbox"
+          // @ts-expect-error -- Safari's native switch control, not in React's types yet.
+          switch=""
+          className="absolute inset-0 size-full cursor-pointer opacity-[0.01]"
+          onChange={() => setLastTried('C')}
+        />
+      </label>
+      <label className={row}>
+        <span>D · Real switch (toggle it)</span>
+        <input
+          type="checkbox"
+          // @ts-expect-error -- Safari's native switch control, not in React's types yet.
+          switch=""
+          onChange={() => setLastTried('D')}
+        />
+      </label>
+      {lastTried && <p className="text-[12px] text-subtle">Tried {lastTried}.</p>}
+    </div>
   );
 }
 
@@ -97,6 +148,7 @@ export function SettingsFields({ settings, onChange }: { settings: Settings; onC
           </div>
         ))}
       </div>
+      {isIOS() && <HapticsTest />}
     </div>
   );
 }
