@@ -139,7 +139,7 @@ Everything runs in your browser. Your games go straight from the Chess.com / Lic
 | **Win %** | Scores become winning chances with the logistic model Lichess fitted on real games. |
 | **Classification** | Based on **expected points lost** against the best move, using Chess.com's published bands: ≤2% Excellent, ≤5% Good, ≤10% Inaccuracy, ≤20% Mistake, >20% Blunder. A +0.5 → −1.0 swing is serious; +9 → +7.5 isn't. |
 | **Best / Great** | **Best** is the engine's top move, or a move it scores exactly as well. **Great** is the top move when every alternative is at least a mistake *and* would give up the result. If the second-best move still keeps a clearly winning position, the move is just Best. Plain recaptures don't count. |
-| **Brilliant** | A sound **sacrifice**: it leaves material the opponent can win by static exchange (legal-move SEE, so pins and checks count), it is still (near-)best, and you weren't already completely winning. |
+| **Brilliant** | A sound **sacrifice**: it leaves material the opponent can win by static exchange (legal-move SEE, so pins and checks count), it is still (near-)best, and you weren't already completely winning. When you were, it still counts if it's the engine's top move and every other move gives a big part of the win away (like 40...Rxg3+! Kxg3 Rc3+, winning the queen at +13). |
 | **Miss** | You failed to punish your opponent's mistake or blunder. |
 | **Book** | The position is in the [Lichess openings](https://github.com/lichess-org/chess-openings) dataset, including transpositions. |
 | **Coach** | Board-level motif detection on the played move, the best move and the opponent's best reply, phrased the way Chess.com's coach talks: what your move did, what it allowed, and what the best move would have done. |

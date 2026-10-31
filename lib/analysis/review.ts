@@ -171,8 +171,18 @@ export function classifyMove(input: ClassifyInput): Classified {
   if (ply.san.endsWith('#')) return result('best');
 
   // Brilliant: a sound piece sacrifice that is (near-)best and leaves the
-  // mover at least equal, without already being completely winning.
-  if (winLoss <= EXCELLENT && winBest < BRILLIANT_MAX_WIN_BEFORE && winPlayed >= BRILLIANT_MIN_WIN_AFTER) {
+  // mover at least equal. When already completely winning, a sacrifice is
+  // usually just tidy technique – unless it's the engine's choice and every
+  // other move gives a big part of the win away (40...Rxg3+ Kxg3 Rc3+ in
+  // Daniil_Kolbasenk0–Hikaru, rated brilliant by Chess.com at +13).
+  const secondLine = before.lines.find((l) => l.pv[0] !== ply.uci);
+  const onlyWayToStayWinning =
+    isTop && !!secondLine && winBest - winPercent(scoreToCp(secondLine.score)) >= GREAT_GAP;
+  if (
+    winLoss <= EXCELLENT &&
+    (winBest < BRILLIANT_MAX_WIN_BEFORE || onlyWayToStayWinning) &&
+    winPlayed >= BRILLIANT_MIN_WIN_AFTER
+  ) {
     const sacrifice = sacrificedMaterial(ply.fenBefore, ply.fenAfter, ply.color);
     if (sacrifice) return result('brilliant', sacrifice);
   }
