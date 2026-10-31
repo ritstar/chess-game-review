@@ -32,6 +32,12 @@ const DECIDED_WIN = 90;
 
 /** A "great" move: every alternative is at least a mistake. */
 export const GREAT_GAP = 10;
+/**
+ * A "great" move has to matter for the result: if the next-best move still
+ * keeps a clearly winning position (+3 or so), finding the very best one
+ * isn't great, it's just best.
+ */
+const GREAT_SECOND_STILL_WINNING = 75;
 /** Brilliant sacrifices aren't awarded when already completely winning. */
 const BRILLIANT_MAX_WIN_BEFORE = 97;
 const BRILLIANT_MIN_WIN_AFTER = 50;
@@ -208,6 +214,7 @@ export function classifyMove(input: ClassifyInput): Classified {
 
 function isGreat(input: ClassifyInput, winBest: number, winSecond: number): boolean {
   if (winBest - winSecond < GREAT_GAP) return false;
+  if (winSecond >= GREAT_SECOND_STILL_WINNING) return false;
   const { ply, prevPly } = input;
   // Recapturing a piece is "only move" chess but hardly a great find.
   if (ply.captured && prevPly?.captured && prevPly.to === ply.to) return false;
@@ -276,10 +283,7 @@ export interface ReviewMoveInput {
  */
 export function reviewMove(input: ReviewMoveInput): MoveReview {
   const { ply, before, after, book } = input;
-  const evalBefore = evalPoint(before)!;
-  const evalAfter = evalPoint(after)!;
   const moverWin = (e: EvalPoint) => (ply.color === 'w' ? e.win : 100 - e.win);
-  const moverAccuracyWin = (e: EvalPoint) => accuracyWin(ply.color === 'w' ? e.cp : -e.cp);
   const classified = classifyMove({
     ply,
     before,
@@ -296,7 +300,8 @@ export function reviewMove(input: ReviewMoveInput): MoveReview {
     classification: classified.classification,
     winLoss: classified.winLoss,
     cpLoss: Math.min(1000, Math.max(0, Math.min(classified.bestCp, 1000) - Math.min(classified.playedCp, 1000))),
-    accuracy: moveAccuracy(moverAccuracyWin(evalBefore), moverAccuracyWin(evalAfter)),
+    // Best and played move scored in the same search (see classifyMove).
+    accuracy: moveAccuracy(accuracyWin(classified.bestCp), accuracyWin(Math.min(classified.bestCp, classified.playedCp))),
     bestUci: best?.pv[0],
   } as MoveReview;
 
@@ -397,7 +402,14 @@ export function buildReview(
     const own = moves.filter((m, i): m is MoveReview => !!m && plies[i].color === color);
     const counts = emptyCounts();
     own.forEach((m) => counts[m.classification]++);
-    const accuracy = complete ? gameAccuracy(evals.map((e) => e?.cp ?? NaN), color, firstMover) : null;
+    const accuracy = complete
+      ? gameAccuracy(
+          evals.map((e) => e?.cp ?? NaN),
+          moves.map((m) => m?.accuracy ?? 100),
+          color,
+          firstMover,
+        )
+      : null;
     return {
       accuracy,
       acpl: own.length ? Math.round(own.reduce((a, m) => a + m.cpLoss, 0) / own.length) : 0,

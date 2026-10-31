@@ -6,11 +6,18 @@
  *
  * Accuracy follows the same published method – per-move accuracy from win%
  * lost, aggregated with a volatility-weighted mean and a harmonic mean, so one
- * blunder in a sharp position counts more than drift in a dead-equal one – but
- * with three constants refitted to match the accuracy Chess.com reports.
- * Fitted on 120 player-games (club players around 1000–1600 and grandmaster
- * blitz) with `scripts/benchmark.ts`: mean absolute error fell from 5.6 to 4.7
- * points and the +4 point bias disappeared.
+ * blunder in a sharp position counts more than drift in a dead-equal one –
+ * refitted to match the accuracy Chess.com reports (`scripts/benchmark.ts`):
+ *
+ * - win% lost per move is measured inside one search (best move vs the move
+ *   played, see PositionAnalysis.played) rather than between the evaluations
+ *   of consecutive positions, which come from separate searches and can
+ *   disagree by more than the move itself cost;
+ * - one terrible move can't drag the harmonic mean to zero on its own: each
+ *   move counts at least `harmonicFloor` there (it still scores 0 in the
+ *   weighted mean);
+ * - the curve and weights were fitted on 120 player-games (club players
+ *   around 1000–1600 and grandmaster blitz).
  */
 
 const K = 0.00368208;
@@ -20,9 +27,11 @@ export const ACCURACY_MODEL = {
   /** Flatter than the rating curve: a +3 position isn't "won" yet, so slips there still count. */
   winK: 0.0025,
   /** How fast per-move accuracy falls with win% lost (Lichess: 0.0435). */
-  decay: 0.075,
+  decay: 0.11,
   /** Weight of the harmonic mean against the volatility-weighted mean (Lichess: 0.5). */
-  harmonicShare: 0.25,
+  harmonicShare: 0.8,
+  /** Lowest per-move accuracy the harmonic mean sees (Lichess: none). */
+  harmonicFloor: 40,
   /** Evaluations beyond ±15 pawns are all "completely winning". */
   clampCp: 1500,
 };
@@ -61,11 +70,19 @@ function harmonicMean(xs: number[]): number {
  *
  * @param whiteCp evaluation in centipawns from White's POV for every
  *   position (mate as a large value): index 0 is the start position, index i
- *   is after ply i. Length = plies + 1.
+ *   is after ply i. Length = plies + 1. Only used to weigh moves by how sharp
+ *   the position was.
+ * @param moveAccuracies accuracy of every ply (index i is ply i + 1), see
+ *   {@link moveAccuracy}.
  * @param color which player to score.
  * @param firstMover who moved at ply 1 ('w' unless the game starts from a FEN).
  */
-export function gameAccuracy(whiteCp: number[], color: 'w' | 'b', firstMover: 'w' | 'b' = 'w'): number | null {
+export function gameAccuracy(
+  whiteCp: number[],
+  moveAccuracies: number[],
+  color: 'w' | 'b',
+  firstMover: 'w' | 'b' = 'w',
+): number | null {
   const whiteWin = whiteCp.map(accuracyWin);
   const n = whiteWin.length - 1;
   if (n < 1) return null;
@@ -80,15 +97,12 @@ export function gameAccuracy(whiteCp: number[], color: 'w' | 'b', firstMover: 'w
   for (let ply = 1; ply <= n; ply++) {
     const mover = (ply % 2 === 1) === (firstMover === 'w') ? 'w' : 'b';
     if (mover !== color) continue;
-    const sign = color === 'w' ? 1 : -1;
-    const before = sign === 1 ? whiteWin[ply - 1] : 100 - whiteWin[ply - 1];
-    const after = sign === 1 ? whiteWin[ply] : 100 - whiteWin[ply];
-    accs.push({ acc: moveAccuracy(before, after), weight: weights[Math.min(ply - 1, weights.length - 1)] ?? 1 });
+    accs.push({ acc: moveAccuracies[ply - 1], weight: weights[Math.min(ply - 1, weights.length - 1)] ?? 1 });
   }
   if (accs.length === 0) return null;
 
   const totalWeight = accs.reduce((a, x) => a + x.weight, 0);
   const weighted = accs.reduce((a, x) => a + x.acc * x.weight, 0) / totalWeight;
-  const harmonic = harmonicMean(accs.map((x) => x.acc));
+  const harmonic = harmonicMean(accs.map((x) => Math.max(x.acc, ACCURACY_MODEL.harmonicFloor)));
   return weighted * (1 - ACCURACY_MODEL.harmonicShare) + harmonic * ACCURACY_MODEL.harmonicShare;
 }

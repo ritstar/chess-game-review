@@ -138,13 +138,13 @@ Everything runs in your browser. Your games go straight from the Chess.com / Lic
 | **Engine, pass 2** | The moves that decide the review are searched again, deeper (Standard: depth 20): every inaccuracy, mistake, miss and blunder, every Great or Brilliant candidate, and any move sitting on a rating boundary. |
 | **Win %** | Scores become winning chances with the logistic model Lichess fitted on real games. |
 | **Classification** | Based on **expected points lost** against the best move, using Chess.com's published bands: ≤2% Excellent, ≤5% Good, ≤10% Inaccuracy, ≤20% Mistake, >20% Blunder. A +0.5 → −1.0 swing is serious; +9 → +7.5 isn't. |
-| **Best / Great** | **Best** is the engine's top move, or a move it scores exactly as well. **Great** is the top move when every alternative is at least a mistake. Plain recaptures don't count. |
+| **Best / Great** | **Best** is the engine's top move, or a move it scores exactly as well. **Great** is the top move when every alternative is at least a mistake *and* would give up the result. If the second-best move still keeps a clearly winning position, the move is just Best. Plain recaptures don't count. |
 | **Brilliant** | A sound **sacrifice**: it leaves material the opponent can win by static exchange (legal-move SEE, so pins and checks count), it is still (near-)best, and you weren't already completely winning. |
 | **Miss** | You failed to punish your opponent's mistake or blunder. |
 | **Book** | The position is in the [Lichess openings](https://github.com/lichess-org/chess-openings) dataset, including transpositions. |
 | **Coach** | Board-level motif detection on the played move, the best move and the opponent's best reply, phrased the way Chess.com's coach talks: what your move did, what it allowed, and what the best move would have done. |
 | **Phases** | The game is split into opening, middlegame and endgame (the rules Lichess uses: pieces traded or developed off the back rank; six or fewer pieces left). Each player gets a grade per phase from their move accuracy there. |
-| **Accuracy** | The Lichess method (per-move accuracy from win % lost, combined as a volatility-weighted mean and a harmonic mean), with three constants refitted so the result matches Chess.com's accuracy. |
+| **Accuracy** | The Lichess method (per-move accuracy from win % lost, combined as a volatility-weighted mean and a harmonic mean), refitted to match Chess.com: each move's loss is taken from the same search as the best move, and one blunder counts at least 40% in the harmonic mean, so a single bad move can't zero out a long game. |
 
 ## 🎯 How close to Chess.com?
 
@@ -152,11 +152,11 @@ Chess.com's API includes its own accuracy score for every game that was reviewed
 
 | Games (player-games) | Average difference from Chess.com | Within 5 points |
 |---|---|---|
-| Club players, ~1000–1600 (72) | 5.4 points | 62% |
-| Grandmaster blitz (48) | 3.7 points | 75% |
-| All (120) | **4.7 points**, no overall bias | 67% |
+| Club players, ~1000–1600 (72) | 2.8 points | 81% |
+| Grandmaster blitz (48) | 1.9 points | 96% |
+| **Unseen test set**: 37 recent Hikaru blitz games, not used for fitting (74) | **2.4 points** | **92%** |
 
-With the plain Lichess formula, the average gap was 5.6 points, and our accuracy read 4 points high. Chess.com's exact formula isn't public, so a few points of disagreement on single games is expected.
+With the plain Lichess formula, the average gap was 5.6 points on the fitting set and 5.9 on the test set. What closed most of it: measuring each move's loss inside one search, and not letting a single blunder drag the harmonic mean to zero. Chess.com's exact formula isn't public, so expect a couple of points of difference on any single game.
 
 ## 🚀 Run it locally
 
