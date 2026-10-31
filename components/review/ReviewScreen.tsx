@@ -32,7 +32,7 @@ import { scoreToCp } from '@/lib/engine/uci';
 import { materialInfo } from '@/lib/format';
 import { makePly, pliesFromSan, pliesFromUci, type PlyRecord } from '@/lib/games/pgn';
 import { formatTimeControl, resultFor, type GameRecord } from '@/lib/games/types';
-import { haptic, hapticForSan } from '@/lib/haptics';
+import { haptic, hapticForSan, hapticNeedsGesture } from '@/lib/haptics';
 import { inVariation, initialNav, navReducer, shownPly } from '@/lib/review/navigation';
 import { DEPTH_PRESETS, type Settings } from '@/lib/settings';
 import { playSound, soundForSan } from '@/lib/sound';
@@ -177,6 +177,19 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
   const [retry, setRetry] = useState<{ index: number; note?: 'same' } | null>(null);
   /** Set by handlers so the next position change also triggers haptics. */
   const userAction = useRef(false);
+  const hapticsOn = useRef(settings.haptics);
+  useEffect(() => {
+    hapticsOn.current = settings.haptics;
+  }, [settings.haptics]);
+  /**
+   * Called by every handler that moves the board. On iPhone the haptic tick
+   * only works inside the tap itself, so it fires here; elsewhere it fires
+   * with the sound once the new position is on the board.
+   */
+  const markUser = useCallback(() => {
+    userAction.current = true;
+    if (hapticsOn.current && hapticNeedsGesture()) haptic('move');
+  }, []);
 
   const perspective = game.perspective;
   const orientation = ((perspective ?? 'w') === 'w') !== flipped ? 'white' : 'black';
@@ -218,37 +231,46 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
 
   // Stable handlers (they only touch setters, dispatch and refs) so the
   // memoised move list, strip and graph don't re-render on every step.
-  const goto = useCallback((index: number) => {
-    userAction.current = true;
-    setPlaying(false);
-    setRetry(null);
-    dispatch({ type: 'goto', index });
-    setMode('review');
-  }, []);
-  const gotoVariation = useCallback((cursor: number) => {
-    userAction.current = true;
-    setPlaying(false);
-    setRetry(null);
-    dispatch({ type: 'gotoVariation', cursor });
-    setMode('review');
-  }, []);
-  const step = useCallback((delta: 1 | -1) => {
-    userAction.current = true;
-    setPlaying(false);
-    setRetry(null);
-    dispatch({ type: 'step', delta });
-    setMode('review');
-  }, []);
+  const goto = useCallback(
+    (index: number) => {
+      markUser();
+      setPlaying(false);
+      setRetry(null);
+      dispatch({ type: 'goto', index });
+      setMode('review');
+    },
+    [markUser],
+  );
+  const gotoVariation = useCallback(
+    (cursor: number) => {
+      markUser();
+      setPlaying(false);
+      setRetry(null);
+      dispatch({ type: 'gotoVariation', cursor });
+      setMode('review');
+    },
+    [markUser],
+  );
+  const step = useCallback(
+    (delta: 1 | -1) => {
+      markUser();
+      setPlaying(false);
+      setRetry(null);
+      dispatch({ type: 'step', delta });
+      setMode('review');
+    },
+    [markUser],
+  );
   const stepBack = useCallback(() => step(-1), [step]);
   const stepForward = useCallback(() => step(1), [step]);
   const backToGame = useCallback(() => {
-    userAction.current = true;
+    markUser();
     setPlaying(false);
     setRetry(null);
     dispatch({ type: 'backToGame' });
-  }, []);
+  }, [markUser]);
   const undo = () => {
-    userAction.current = true;
+    markUser();
     setPlaying(false);
     dispatch({ type: 'undo' });
   };
@@ -272,13 +294,13 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
       return;
     }
     if (retry) setRetry({ index: retry.index });
-    userAction.current = true;
+    markUser();
     dispatch({ type: 'play', ply: next, animate: !dragged });
   };
 
   const startRetry = () => {
     if (nav.current < 0) return;
-    userAction.current = true;
+    markUser();
     setPlaying(false);
     dispatch({ type: 'goto', index: nav.current - 1 });
     setRetry({ index: nav.current });
@@ -289,7 +311,7 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
     const pv = analysis?.lines[0]?.pv;
     if (!pv?.length) return;
     const cont = pliesFromUci(fen, pv.slice(0, LINE_PLIES));
-    userAction.current = true;
+    markUser();
     if (isVar) {
       dispatch({ type: 'setLine', base: variation!.base, moves: [...variation!.moves.slice(0, nav.cursor), ...cont], cursor: nav.cursor + 1 });
     } else {
@@ -303,7 +325,7 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
   const showBest = (target: PlyRecord | null = ply, targetReview: MoveReview | null = moveReview) => {
     if (!target || !targetReview?.bestLine.length) return;
     const best = pliesFromSan(target.fenBefore, targetReview.bestLine.slice(0, LINE_PLIES));
-    userAction.current = true;
+    markUser();
     setPlaying(false);
     if (isVar && target === ply) {
       dispatch({ type: 'setLine', base: variation!.base, moves: [...variation!.moves.slice(0, nav.cursor - 1), ...best], cursor: nav.cursor });
@@ -353,12 +375,14 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
     userAction.current = false;
     if (!ply) return;
     if (settings.sound) playSound(soundForSan(ply.san));
-    if (settings.haptics && byUser) haptic(hapticForSan(ply.san));
+    // (On iPhone the tap handler already ticked; see markUser.)
+    const vibrate = settings.haptics && byUser && !hapticNeedsGesture();
+    if (vibrate) haptic(hapticForSan(ply.san));
     // A little extra for great finds, timed with the board pop.
     const c = moveReview?.classification;
     if (c === 'great' || c === 'brilliant') {
       if (settings.sound) setTimeout(() => playSound(c), 120);
-      if (settings.haptics && byUser) setTimeout(() => haptic('success'), 120);
+      if (vibrate) setTimeout(() => haptic('success'), 120);
     }
     // Only the position change matters here.
     // eslint-disable-next-line react-hooks/exhaustive-deps

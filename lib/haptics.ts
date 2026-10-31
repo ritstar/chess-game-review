@@ -2,7 +2,10 @@
  * Haptic feedback. Android browsers support the Vibration API. iOS Safari
  * doesn't, but toggling a native `<input type="checkbox" switch>` (iOS 18+)
  * produces a system haptic tick; that's unofficial and may stop working, so
- * it's used only as a fallback.
+ * it's used only as a fallback. The iOS tick only fires while the browser is
+ * still handling the user's tap, so on iPhone call {@link haptic} from the
+ * event handler itself, not from an effect or timer (see
+ * {@link hapticNeedsGesture}).
  */
 
 export type HapticKind = 'move' | 'capture' | 'check' | 'illegal' | 'success' | 'error';
@@ -37,6 +40,11 @@ function iosTick() {
   }
 }
 
+/** True where haptics only work synchronously inside a tap/click handler (iPhone, iPad). */
+export function hapticNeedsGesture(): boolean {
+  return typeof navigator !== 'undefined' && !('vibrate' in navigator) && isIOS();
+}
+
 export function hapticsSupported(): boolean {
   return typeof navigator !== 'undefined' && ('vibrate' in navigator || isIOS());
 }
@@ -52,12 +60,8 @@ export function haptic(kind: HapticKind) {
     }
     return;
   }
-  if (isIOS()) {
-    iosTick();
-    // A second tick for "double" patterns; only fires if Safari still treats
-    // us as inside the user gesture.
-    if (Array.isArray(pattern)) setTimeout(iosTick, 90);
-  }
+  // One tick: iOS ignores a second one fired after the tap has been handled.
+  if (isIOS()) iosTick();
 }
 
 export function hapticForSan(san: string): HapticKind {
