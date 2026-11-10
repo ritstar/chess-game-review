@@ -45,8 +45,9 @@ function chessComOpening(g: ChessComGame): string | undefined {
   const slug = g.eco?.split('/openings/')[1];
   if (!slug) return undefined;
   // "Sicilian-Defense-Najdorf-Variation-6.Be3" → "Sicilian Defense Najdorf Variation"
+  // …and "Catalan-Opening...8.O-O-O-O" → "Catalan Opening"
   return decodeURIComponent(slug)
-    .replace(/-\d+\..*$/, '')
+    .replace(/(-|\.{3})\d+\..*$/, '')
     .replace(/-/g, ' ');
 }
 

@@ -64,7 +64,7 @@ export function CoachBubble({
   message: CoachMessage;
   className?: string;
   fixed?: boolean;
-  /** Compact phone variant: two lines, tap to open the full explanation. */
+  /** Compact phone variant: fixed height, tap to open the full explanation. */
   onOpen?: () => void;
 }) {
   const { icon, san, headline, details = [], evaluation, loading, tag, tone = 'default', progress } = message;
@@ -134,7 +134,7 @@ export function CoachBubble({
   );
 }
 
-/** Phone coach: a fixed-height two-line summary; the full text opens in a sheet. */
+/** Phone coach: a fixed-height summary (headline plus three lines); the full text opens in a sheet. */
 function CompactBubble({ message, onOpen, className }: { message: CoachMessage; onOpen: () => void; className?: string }) {
   // No eval chip here: the eval bar right above already shows it.
   const { icon, san, headline, details = [], loading, tag, tone = 'default' } = message;
@@ -166,7 +166,8 @@ function CompactBubble({ message, onOpen, className }: { message: CoachMessage; 
         {loading ? (
           <span className="mt-1.5 block h-2.5 w-4/5 animate-pulse rounded bg-[#e6e5e0]" />
         ) : (
-          <span className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-[#4a4743]">{details[0] ?? ''}</span>
+          // Three lines: the reason first, then as much of the follow-up as fits.
+          <span className="mt-0.5 line-clamp-3 text-[13px] leading-[1.3] text-[#4a4743]">{details.slice(0, 2).join(' ')}</span>
         )}
         <ChevronRight size={16} className="absolute top-1/2 right-1.5 -translate-y-1/2 text-[#9b9892]" aria-hidden />
       </button>

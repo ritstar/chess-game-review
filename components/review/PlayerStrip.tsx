@@ -1,10 +1,12 @@
 import { memo } from 'react';
 import { PIECE_GLYPH, formatClock } from '@/lib/format';
-import type { PlayerInfo } from '@/lib/games/types';
+import { PlayerAvatar, PlayerTitle } from '@/components/PlayerAvatar';
+import type { GameSource, PlayerInfo } from '@/lib/games/types';
 import { cn } from '@/lib/utils';
 
 interface PlayerStripProps {
   player: PlayerInfo;
+  source: GameSource;
   color: 'w' | 'b';
   captured: string[];
   materialDiff: number;
@@ -15,17 +17,12 @@ interface PlayerStripProps {
   compact?: boolean;
 }
 
-export const PlayerStrip = memo(function PlayerStrip({ player, color, captured, materialDiff, clock, toMove, accuracy, compact }: PlayerStripProps) {
+export const PlayerStrip = memo(function PlayerStrip({ player, source, color, captured, materialDiff, clock, toMove, accuracy, compact }: PlayerStripProps) {
   if (compact) {
     return (
       <div className="flex h-8 items-center gap-2 text-[13px]">
-        <span
-          className={cn(
-            'size-3.5 shrink-0 rounded-[3px]',
-            color === 'w' ? 'bg-[#f2f2f2]' : 'bg-[#3e3b37] ring-1 ring-white/25',
-          )}
-          aria-label={color === 'w' ? 'White' : 'Black'}
-        />
+        <PlayerAvatar source={source} name={player.name} color={color} className="size-6 rounded text-[12px]" />
+        <PlayerTitle source={source} name={player.name} />
         <span className="min-w-0 truncate font-semibold">{player.name}</span>
         {player.rating !== undefined && <span className="shrink-0 text-muted">{player.rating}</span>}
         {accuracy != null && (
@@ -56,17 +53,10 @@ export const PlayerStrip = memo(function PlayerStrip({ player, color, captured, 
   }
   return (
     <div className="flex h-11 items-center gap-2.5">
-      <div
-        className={cn(
-          'flex size-8 shrink-0 items-center justify-center rounded-md text-[15px] font-bold',
-          color === 'w' ? 'bg-[#f2f2f2] text-[#2a2825]' : 'bg-[#3e3b37] text-[#f2f2f2] ring-1 ring-white/10',
-        )}
-        aria-hidden
-      >
-        {player.name.charAt(0).toUpperCase()}
-      </div>
+      <PlayerAvatar source={source} name={player.name} color={color} className="size-8 text-[15px]" />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-1.5">
+          <PlayerTitle source={source} name={player.name} className="self-center" />
           <span className="truncate text-[14px] font-semibold">{player.name}</span>
           {player.rating !== undefined && <span className="text-[13px] text-muted">({player.rating})</span>}
           {accuracy != null && (

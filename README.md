@@ -81,7 +81,7 @@ Drag a piece (or tap one and then a square) at any point. A live Stockfish rates
 <td valign="top">
 
 ### 📊 The whole game at a glance
-Accuracy for both players, calibrated to match Chess.com's numbers (see [How close to Chess.com?](#-how-close-to-chesscom)). Opening, middlegame and endgame grades for each player, the key moments, an evaluation graph (tap or drag it to jump around), the top 3 engine lines, opening names from a 3,800-line book, clocks and captured material.
+A Chess.com-style report card: player avatars and titles, accuracy for both players calibrated to match Chess.com's numbers (see [How close to Chess.com?](#-how-close-to-chesscom)), every move rating counted, an estimated **Game Rating**, and opening, middlegame and endgame grades. Plus the key moments, an evaluation graph (tap or drag it to jump around), the top 3 engine lines, opening names from a 3,800-line book, clocks and captured material.
 
 </td>
 </tr>
@@ -144,7 +144,8 @@ Everything runs in your browser. Your games go straight from the Chess.com / Lic
 | **Book** | The position is in the [Lichess openings](https://github.com/lichess-org/chess-openings) dataset, including transpositions. |
 | **Coach** | Board-level motif detection on the played move, the best move and the opponent's best reply, phrased the way Chess.com's coach talks: what your move did, what it allowed, and what the best move would have done. |
 | **Phases** | The game is split into opening, middlegame and endgame (the rules Lichess uses: pieces traded or developed off the back rank; six or fewer pieces left). Each player gets a grade per phase from their move accuracy there. |
-| **Accuracy** | The Lichess method (per-move accuracy from win % lost, combined as a volatility-weighted mean and a harmonic mean), refitted to match Chess.com: each move's loss is taken from the same search as the best move, and one blunder counts at least 40% in the harmonic mean, so a single bad move can't zero out a long game. |
+| **Game Rating** | An estimate of how strong the play in this one game was. Chess.com's formula isn't public; ours starts from the player's rating and moves it by 40 points for every accuracy point above or below what is typical at that rating and time control (at most ±600). For pasted PGNs without ratings it uses accuracy alone. |
+| **Accuracy** | The Lichess method (per-move accuracy from win % lost, combined as a volatility-weighted mean and a harmonic mean), refitted to match Chess.com: each move's loss is taken from the same search as the best move, and one blunder counts at least 40% in the harmonic mean, so a single bad move can't zero out a long game. Opening-book moves count as perfect. |
 
 ## 🎯 How close to Chess.com?
 
@@ -152,9 +153,9 @@ Chess.com's API includes its own accuracy score for every game that was reviewed
 
 | Games (player-games) | Average difference from Chess.com | Within 5 points |
 |---|---|---|
-| Club players, ~1000–1600 (72) | 2.8 points | 81% |
+| Club players, ~1000–1600 (72) | 2.7 points | 82% |
 | Grandmaster blitz (48) | 1.9 points | 96% |
-| **Unseen test set**: 37 recent Hikaru blitz games, not used for fitting (74) | **2.4 points** | **92%** |
+| **Unseen test set**: 37 recent Hikaru blitz games, not used for fitting (74) | **2.3 points** | **93%** |
 
 With the plain Lichess formula, the average gap was 5.6 points on the fitting set and 5.9 on the test set. What closed most of it: measuring each move's loss inside one search, and not letting a single blunder drag the harmonic mean to zero. Chess.com's exact formula isn't public, so expect a couple of points of difference on any single game.
 

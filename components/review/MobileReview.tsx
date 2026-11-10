@@ -68,7 +68,7 @@ export interface MobileReviewProps {
 
 /**
  * The phone layout. Review mode is a full-screen app view that never
- * scrolls: header, eval bar, a two-line coach, the board (sized to whatever
+ * scrolls: header, eval bar, a three-line coach, the board (sized to whatever
  * height is left), the move strip and a thumb-reach action bar. Details and
  * settings live in bottom sheets. The summary is a normal scrolling page.
  */
@@ -77,6 +77,9 @@ export function MobileReview(p: MobileReviewProps) {
   const landscape = useMediaQuery('(orientation: landscape) and (max-height: 560px)');
   // Player bars are nice-to-have; on shorter screens the board gets their space.
   const roomy = useMediaQuery('(min-height: 760px)');
+  // The coach's words matter more than raw engine lines: on short screens the
+  // lines live in the details sheet only, so the board can stay full width.
+  const tall = useMediaQuery('(min-height: 700px)');
   const closeSheet = () => setSheet(null);
 
   // No pull-to-refresh or rubber-banding while reviewing: a downward drag on
@@ -153,7 +156,7 @@ export function MobileReview(p: MobileReviewProps) {
     );
   }
 
-  const engineRow = p.settings.showEngineLines && (
+  const engineRow = p.settings.showEngineLines && (tall || landscape) && (
     <div className="shrink-0 border-t border-line/60">
       <EngineLines analysis={p.analysis} onOpen={() => setSheet('details')} />
     </div>
@@ -180,7 +183,7 @@ export function MobileReview(p: MobileReviewProps) {
       <ActionBar actions={p.actions} primary={p.primary} compact />
     </div>
   );
-  const coach = <CoachBubble message={p.coach} onOpen={() => setSheet('details')} className="h-[68px] shrink-0" />;
+  const coach = <CoachBubble message={p.coach} onOpen={() => setSheet('details')} className="h-[88px] shrink-0" />;
   // The board takes the space that's left: a size container, and the board is
   // as big as its smaller side.
   const boardRegion = (

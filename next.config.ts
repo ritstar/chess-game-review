@@ -7,7 +7,8 @@ const csp = [
   // Next.js injects inline bootstrap scripts; Stockfish compiles WebAssembly.
   `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  // Player avatars come from Chess.com's image host.
+  "img-src 'self' data: blob: https://images.chesscomfiles.com https://www.chess.com",
   "font-src 'self' data:",
   "connect-src 'self' https://api.chess.com https://lichess.org",
   "worker-src 'self' blob:",

@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 type Toggle = 'showBestArrow' | 'showEngineLines' | 'sound' | 'haptics';
 
 const TOGGLES: { key: Toggle; label: string; hint?: string }[] = [
-  { key: 'showEngineLines', label: 'Engine lines' },
+  { key: 'showEngineLines', label: 'Engine lines', hint: 'On small phones they are in the move details instead' },
   { key: 'showBestArrow', label: 'Best-move arrow' },
   { key: 'sound', label: 'Sound' },
   { key: 'haptics', label: 'Haptics', hint: 'Android, and recent iPhones' },
@@ -43,8 +43,9 @@ function HapticsTest() {
   };
   const row = 'flex min-h-11 items-center justify-between gap-3 rounded-lg bg-surface-2 px-3 py-2 text-left text-[14px]';
   return (
-    <div className="space-y-2 border-t border-line pt-3">
-      <p className="text-[11px] font-bold tracking-wider text-subtle uppercase">Haptics test (iPhone)</p>
+    <details className="border-t border-line pt-3 [&_summary]:list-none [&_summary::-webkit-details-marker]:hidden">
+      <summary className="cursor-pointer text-[13px] text-muted underline decoration-dotted underline-offset-4">No vibration on your iPhone? Run a quick test</summary>
+      <div className="mt-3 space-y-2">
       <p className="text-[12px] text-subtle">
         Browser reports iOS {iosVersion() ?? 'unknown'}. Tap each one and note which you feel. Needs Settings › Sounds &amp; Haptics › System Haptics on.
       </p>
@@ -77,7 +78,8 @@ function HapticsTest() {
         />
       </label>
       {lastTried && <p className="text-[12px] text-subtle">Tried {lastTried}.</p>}
-    </div>
+      </div>
+    </details>
   );
 }
 

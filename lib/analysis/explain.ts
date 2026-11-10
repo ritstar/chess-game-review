@@ -149,17 +149,61 @@ export function explainMove(input: ExplainInput): Explanation {
   const ideas = moveIdeas(ply.fenBefore, ply.uci, { prevMove });
   const afterPv = after.lines[0]?.pv ?? [];
 
-  /** "This forks your king and rook, winning material." */
-  const playedIdea = (): string | null => {
+  /**
+   * Material the mover nets along the engine's line. Measured from before the
+   * opponent's capture when there was one, so taking back isn't "winning".
+   */
+  const playedLine = (): { fen: string; line: string[]; plies: number } => {
+    const prev = input.prevPly;
+    return prev?.captured
+      ? { fen: prev.fenBefore, line: [prev.uci, ply.uci, ...afterPv], plies: 6 }
+      : { fen: ply.fenBefore, line: [ply.uci, ...afterPv], plies: 5 };
+  };
+  const playedGain = () => {
+    const { fen, line, plies } = playedLine();
+    return materialSwing(fen, line, ply.color, plies);
+  };
+  /** "a piece", "the queen"… checked against what the line really captures. */
+  const gainText = (gain: number) => {
+    const chess = new Chess(ply.fenBefore);
+    let won = false;
+    let lost = false;
+    for (const m of [ply.uci, ...afterPv].slice(0, 10)) {
+      try {
+        const move = chess.move({ from: m.slice(0, 2), to: m.slice(2, 4), promotion: m[4] });
+        if (move.captured === 'q') {
+          if (move.color === ply.color) won = true;
+          else lost = true;
+        }
+      } catch {
+        break;
+      }
+    }
+    // Not when the queens simply come off along the way.
+    if (won && !lost && gain >= 3) return 'the queen';
+    return gain >= 8 ? 'decisive material' : gainWords(gain);
+  };
+
+  const TACTICS: Idea['kind'][] = ['fork', 'pin', 'skewer', 'discoveredAttack', 'discoveredCheck', 'doubleCheck', 'threat', 'mateThreat'];
+
+  /**
+   * "This forks your king and rook, winning material." With `withLine`, a win
+   * that takes a few moves is shown ("This wins the queen: 41... Rc3+ 42. Re3
+   * Rxe3+"); callers that print the continuation themselves leave it off.
+   */
+  const playedIdea = (withLine = true): string | null => {
     const clauses = praise(ideas, v.own, v.theirs);
-    if (!clauses.length) return null;
+    const tactic = ideas.find((i) => TACTICS.includes(i.kind));
+    const gain = playedGain();
     // Tactics that cash in along the engine's line say so.
-    const tactical = ideas.some((i) =>
-      ['fork', 'pin', 'skewer', 'discoveredAttack', 'discoveredCheck', 'doubleCheck', 'threat', 'mateThreat'].includes(i.kind),
-    );
-    if (tactical && winPlayed < 97) {
-      const gain = materialSwing(ply.fenBefore, [ply.uci, ...afterPv], ply.color, 5);
-      if (gain >= 2) return `${thisSentence(clauses.slice(0, 1))!.slice(0, -1)}, winning ${gainWords(gain)}.`;
+    if (tactic && gain >= 2) return `This ${ideaClause(tactic, v.own, v.theirs)}, winning ${gainText(gain)}.`;
+    // A forcing move (check or capture) that wins a piece or more a few moves later.
+    const forcing = ply.san.includes('+') || !!ply.captured;
+    const immediate = ideas.some((i) => i.kind === 'freePiece' || i.kind === 'winsExchange' || i.kind === 'promotion');
+    if (forcing && gain >= 3 && !immediate) {
+      return withLine
+        ? `This wins ${gainText(gain)}: ${formatLine(ply.fenBefore, [san, ...replyLine], 5)}.`
+        : `This wins ${gainText(gain)} by force.`;
     }
     return thisSentence(clauses);
   };
@@ -216,9 +260,9 @@ export function explainMove(input: ExplainInput): Explanation {
           ? `${pick(['A brilliant sacrifice!', 'What a find!', 'Brilliant!'], seed)} ${capitalise(v.own)} ${PIECE_NAME[s.piece]} on ${s.square} is offered, and taking it would be a mistake.`
           : 'A brilliant move!',
       );
-      const idea = playedIdea();
+      const idea = playedIdea(false);
       if (idea && !/takes a free|captures/.test(idea)) details.push(idea);
-      if (replyText) details.push(`Best play continues ${replyText}.`);
+      if (replyText) details.push(`Best play continues ${formatLine(after.fen, replyLine, 6)}.`);
       details.push(`${v.verb('keep', 'keeps')} ${describeWin(winPlayed)}.`);
       return { headline: `${san} is brilliant`, details };
     }
@@ -226,7 +270,7 @@ export function explainMove(input: ExplainInput): Explanation {
     case 'great': {
       const second = before.lines[1];
       const secondSan = second ? uciLineToSan(before.fen, second.pv, 1)[0] : undefined;
-      details.push(playedIdea() ?? pick(['The only good move here!', 'Well found!', 'A great find!'], seed));
+      details.push(playedIdea(false) ?? pick(['The only good move here!', 'Well found!', 'A great find!'], seed));
       details.push(
         `It's the only move that keeps ${describeWin(winPlayed)}${secondSan ? `; ${secondSan} was much weaker` : ''}.`,
       );
@@ -327,6 +371,11 @@ export function explainMove(input: ExplainInput): Explanation {
       const flaw = ideas.find((i) => NEGATIVE.includes(i.kind));
       if (flaw) reason = `This ${ideaClause(flaw, v.own, v.theirs)}.`;
     }
+  }
+  // Nothing concrete found: at least show the move that punishes it.
+  if (!reason && replyLine[0] && (classification === 'mistake' || classification === 'blunder')) {
+    const first = replyClause(['fork', 'threat', 'freePiece', 'winsExchange', 'trade', 'capture', 'promotion', 'passedPawn', 'check']);
+    reason = first ? `This allows ${replyLine[0]}, which ${first}.` : `This allows ${replyLine[0]}.`;
   }
 
   if (reason) details.push(reason);

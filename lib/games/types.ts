@@ -57,3 +57,32 @@ export function formatTimeControl(tc?: string): string {
   const minutes = base >= 60 ? `${+(base / 60).toFixed(1)}` : `${base}s`;
   return inc ? `${minutes} | ${inc}` : `${minutes} min`;
 }
+
+/** How the losing side lost, or how a draw came about, in words. Keys are Chess.com and Lichess codes. */
+const ENDINGS: Record<string, string> = {
+  checkmated: 'checkmate',
+  mate: 'checkmate',
+  resigned: 'resignation',
+  resign: 'resignation',
+  timeout: 'timeout',
+  outoftime: 'timeout',
+  abandoned: 'abandonment',
+  agreed: 'agreement',
+  draw: 'agreement',
+  repetition: 'repetition',
+  stalemate: 'stalemate',
+  insufficient: 'insufficient material',
+  '50move': 'the 50-move rule',
+  timevsinsufficient: 'timeout vs insufficient material',
+};
+
+/** "Hikaru won by resignation", "Draw by repetition"; null for unfinished games. */
+export function describeResult(game: GameRecord): string | null {
+  // PGN exports often carry the whole sentence already.
+  if (game.termination && /\b(won|drawn?)\b/i.test(game.termination)) return game.termination;
+  const how = game.termination ? ENDINGS[game.termination] : undefined;
+  if (game.result === '1/2-1/2') return how ? `Draw by ${how}` : 'Draw';
+  if (game.result !== '1-0' && game.result !== '0-1') return null;
+  const winner = game.result === '1-0' ? game.white.name : game.black.name;
+  return how ? `${winner} won by ${how}` : `${winner} won`;
+}

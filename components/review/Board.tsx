@@ -364,6 +364,7 @@ export function Board({
   const highlight = (square: string, background: string, key: string) => (
     <div key={key} className="pointer-events-none absolute" style={{ ...place(square, orientation), background }} />
   );
+  const labelSpot = lastMove ? cell(lastMove.to, orientation) : { col: 3, row: 3 };
   const tint = classification
     ? `color-mix(in srgb, var(--color-${classification}) 50%, transparent)`
     : 'rgba(255, 255, 51, 0.4)';
@@ -390,7 +391,8 @@ export function Board({
       </div>
 
       {/* Square highlights */}
-      {lastMove && highlight(lastMove.from, 'rgba(255, 255, 51, 0.4)', 'from')}
+      {/* Both squares of the last move take the rating's colour, as on Chess.com. */}
+      {lastMove && highlight(lastMove.from, tint, 'from')}
       {lastMove && highlight(lastMove.to, tint, 'to')}
       {selected && highlight(selected, 'rgba(255, 255, 51, 0.5)', 'sel')}
       {threatSquares.map((s) => highlight(s, 'rgba(245, 140, 30, 0.6)', `t${s}`))}
@@ -438,7 +440,12 @@ export function Board({
                 </div>
               </div>
               <span
-                className="celebrate-label absolute -top-[30%] left-1/2 rounded-full bg-white px-2.5 py-0.5 text-[clamp(11px,3.4vw,15px)] font-extrabold whitespace-nowrap shadow-md"
+                // Keep the label on the board: below the square on the top rank, pulled in at the side files.
+                className={cn(
+                  'celebrate-label absolute rounded-full bg-white px-2.5 py-0.5 text-[clamp(11px,3.4vw,15px)] font-extrabold whitespace-nowrap shadow-md',
+                  labelSpot.row === 0 ? '-bottom-[30%]' : '-top-[30%]',
+                  labelSpot.col === 0 ? 'celebrate-label-left left-0' : labelSpot.col === 7 ? 'celebrate-label-right right-0' : 'left-1/2',
+                )}
                 style={{ color: `var(--color-${classification})` }}
               >
                 {CLASSIFICATION_LABEL[classification]}

@@ -310,8 +310,10 @@ export function reviewMove(input: ReviewMoveInput): MoveReview {
     classification: classified.classification,
     winLoss: classified.winLoss,
     cpLoss: Math.min(1000, Math.max(0, Math.min(classified.bestCp, 1000) - Math.min(classified.playedCp, 1000))),
-    // Best and played move scored in the same search (see classifyMove).
-    accuracy: moveAccuracy(accuracyWin(classified.bestCp), accuracyWin(Math.min(classified.bestCp, classified.playedCp))),
+    // Theory counts as perfect play (a little closer to Chess.com's numbers
+    // in the benchmark). Otherwise: best and played move scored in the same
+    // search (see classifyMove).
+    accuracy: classified.classification === 'book' ? 100 : moveAccuracy(accuracyWin(classified.bestCp), accuracyWin(Math.min(classified.bestCp, classified.playedCp))),
     bestUci: best?.pv[0],
   } as MoveReview;
 

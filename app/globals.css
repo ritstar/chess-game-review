@@ -239,21 +239,21 @@
 
 @keyframes celebrate-label {
   0% {
-    transform: translate(-50%, 6px) scale(0.7);
+    transform: translate(var(--label-x, -50%), 6px) scale(0.7);
     opacity: 0;
   }
   15% {
-    transform: translate(-50%, 0) scale(1.05);
+    transform: translate(var(--label-x, -50%), 0) scale(1.05);
     opacity: 1;
   }
   25% {
-    transform: translate(-50%, 0) scale(1);
+    transform: translate(var(--label-x, -50%), 0) scale(1);
   }
   78% {
     opacity: 1;
   }
   100% {
-    transform: translate(-50%, -6px);
+    transform: translate(var(--label-x, -50%), -6px);
     opacity: 0;
   }
 }
@@ -272,6 +272,12 @@
 
 .celebrate-icon {
   animation: celebrate-icon 1.05s cubic-bezier(0.2, 0.8, 0.3, 1) 0.08s both;
+}
+
+/* At the board's side files the label hugs the square's edge instead of being centred. */
+.celebrate-label-left,
+.celebrate-label-right {
+  --label-x: 0;
 }
 
 .celebrate-label {

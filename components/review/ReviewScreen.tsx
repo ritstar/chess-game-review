@@ -31,7 +31,7 @@ import { winPercent } from '@/lib/analysis/winning';
 import { scoreToCp } from '@/lib/engine/uci';
 import { materialInfo } from '@/lib/format';
 import { makePly, pliesFromSan, pliesFromUci, type PlyRecord } from '@/lib/games/pgn';
-import { formatTimeControl, resultFor, type GameRecord } from '@/lib/games/types';
+import { describeResult, formatTimeControl, resultFor, type GameRecord } from '@/lib/games/types';
 import { haptic, hapticForSan, hapticNeedsGesture } from '@/lib/haptics';
 import { inVariation, initialNav, navReducer, shownPly } from '@/lib/review/navigation';
 import { DEPTH_PRESETS, type Settings } from '@/lib/settings';
@@ -428,7 +428,8 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
   /* ── Board decorations ────────────────────────────────────────────── */
 
   const threat = useMemo(() => {
-    if (!ply || !moveReview || !/^(Attacks|Forks)/.test(moveReview.explanation.details[0] ?? '')) return null;
+    // Draw the attack the coach is talking about ("This forks…", "This attacks…").
+    if (!ply || !moveReview || !moveReview.explanation.details.some((d) => /^This (forks|attacks)\b/.test(d))) return null;
     return detectFork(ply.fenBefore, ply.uci) ?? detectThreats(ply.fenBefore, ply.uci);
   }, [ply, moveReview]);
 
@@ -465,6 +466,7 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
     <PlayerStrip
       compact={compact}
       player={color === 'w' ? game.white : game.black}
+      source={game.source}
       color={color}
       captured={material.captured[color]}
       materialDiff={color === 'w' ? material.diff : -material.diff}
@@ -532,12 +534,14 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
     if (!moveReview) {
       return { tag: isVar ? 'Analysis' : undefined, san: ply.san, headline: ply.san, loading: true, evaluation };
     }
+    // After the last move of the game, say how it ended.
+    const ending = !isVar && nav.current === last ? describeResult(game) : null;
     return {
       tag: isVar ? 'Analysis' : undefined,
       icon: moveReview.classification,
       san: ply.san,
       headline: moveReview.explanation.headline,
-      details: moveReview.explanation.details,
+      details: ending ? [...moveReview.explanation.details.slice(0, 1), `${ending}.`, ...moveReview.explanation.details.slice(1)] : moveReview.explanation.details,
       evaluation,
     };
   })();
@@ -703,7 +707,7 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
             <span className="ml-2 font-mono text-[15px] text-muted">{resultText}</span>
           </p>
           <p className="truncate text-[13px] text-muted">
-            {[opening, formatTimeControl(game.timeControl), game.termination].filter(Boolean).join(' · ')}
+            {[opening, formatTimeControl(game.timeControl), describeResult(game)].filter(Boolean).join(' · ')}
           </p>
         </div>
         <div className="flex items-center gap-1">
