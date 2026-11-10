@@ -19,11 +19,13 @@ import { buildReview } from '@/lib/analysis/review';
 import { EnginePool } from '@/lib/engine/stockfish';
 import type { PositionAnalysis } from '@/lib/engine/uci';
 import { parseGame } from '@/lib/games/pgn';
+import { chessComBookPlies } from '@/lib/games/openingUrl';
 import { DEPTH_PRESETS, type AnalysisDepth } from '@/lib/settings';
 import { nodeEngine } from '../tests/helpers/node-engine';
 
 interface ArchiveGame {
   url: string;
+  eco?: string;
   pgn?: string;
   rules?: string;
   accuracies?: { white: number; black: number };
@@ -73,6 +75,7 @@ for (const g of games.slice(0, limit)) {
   else {
     let firstPass = 0;
     positions = await analyseGame({
+      bookPlies: chessComBookPlies(g.eco),
       ...parsed,
       pool,
       preset: DEPTH_PRESETS[preset],
@@ -85,7 +88,7 @@ for (const g of games.slice(0, limit)) {
     writeFileSync(file, JSON.stringify(positions));
   }
   const seconds = (Date.now() - started) / 1000;
-  const review = buildReview(parsed.plies, positions, book);
+  const review = buildReview(parsed.plies, positions, book, undefined, undefined, chessComBookPlies(g.eco));
   for (const color of ['white', 'black'] as const) {
     const ours = review[color].accuracy;
     if (ours == null) continue;

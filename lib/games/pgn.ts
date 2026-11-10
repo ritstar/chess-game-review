@@ -1,6 +1,7 @@
 import { Chess, DEFAULT_POSITION } from 'chess.js';
 import type { Color, GameRecord } from './types';
 import { timeClassFromSeconds } from './types';
+import { chessComBookPlies } from './openingUrl';
 
 export interface PlyRecord {
   /** 0-based index into the move list. */
@@ -90,6 +91,8 @@ export function gameFromPgn(pgn: string): GameRecord {
     timeControl: headers.TimeControl,
     timeClass: Number.isFinite(base) ? timeClassFromSeconds(base, inc || 0) : 'unknown',
     opening: headers.Opening,
+    // PGNs downloaded from Chess.com carry the same opening URL as its API.
+    bookPlies: chessComBookPlies(headers.ECOUrl),
   };
 }
 

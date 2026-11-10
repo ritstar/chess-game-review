@@ -1,3 +1,4 @@
+import { chessComBookPlies } from './openingUrl';
 import type { GameRecord, TimeClass } from './types';
 
 export class SourceError extends Error {}
@@ -46,9 +47,11 @@ function chessComOpening(g: ChessComGame): string | undefined {
   if (!slug) return undefined;
   // "Sicilian-Defense-Najdorf-Variation-6.Be3" → "Sicilian Defense Najdorf Variation"
   // …and "Catalan-Opening...8.O-O-O-O" → "Catalan Opening"
+  // The URL drops apostrophes: "Queens Gambit" → "Queen's Gambit".
   return decodeURIComponent(slug)
     .replace(/(-|\.{3})\d+\..*$/, '')
-    .replace(/-/g, ' ');
+    .replace(/-/g, ' ')
+    .replace(/\b(Queen|King|Bishop|Petrov|Alekhine|Bird|Owen|Anderssen)s\b/g, "$1's");
 }
 
 function normaliseChessCom(g: ChessComGame, username: string): GameRecord {
@@ -69,6 +72,7 @@ function normaliseChessCom(g: ChessComGame, username: string): GameRecord {
       : 'unknown') as TimeClass,
     rated: g.rated,
     opening: chessComOpening(g),
+    bookPlies: chessComBookPlies(g.eco),
     perspective: g.black.username.toLowerCase() === username.toLowerCase() ? 'b' : 'w',
   };
 }

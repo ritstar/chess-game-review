@@ -251,7 +251,10 @@ function emptyCounts(): Record<Classification, number> {
  * transpositions back into known lines still count, but once two moves in a
  * row are out of book the opening phase is over.
  */
-export function bookMoves(plies: PlyRecord[], book: OpeningBook): boolean[] {
+export function bookMoves(plies: PlyRecord[], book: OpeningBook, knownBookPlies?: number): boolean[] {
+  // Chess.com says where the game left its opening book: use that as is, so
+  // "Book" covers exactly the moves it does in their review.
+  if (knownBookPlies !== undefined) return plies.map((_, i) => i < knownBookPlies);
   const result = plies.map(() => false);
   let misses = 0;
   for (let i = 0; i < plies.length && misses < 2; i++) {
@@ -284,6 +287,8 @@ export interface ReviewMoveInput {
   prevMoverEval?: EvalPoint | null;
   isBook: boolean;
   book: OpeningBook;
+  /** The game's opening, for book moves past the last named line. */
+  openingName?: string;
   perspective?: 'w' | 'b';
 }
 
@@ -334,7 +339,7 @@ export function reviewMove(input: ReviewMoveInput): MoveReview {
       replyLine: review.replyLine,
       prevPly: input.prevPly,
       perspective: input.perspective,
-      opening: classified.classification === 'book' ? lookupOpening(book, ply.fenAfter)?.name : undefined,
+      opening: classified.classification === 'book' ? (lookupOpening(book, ply.fenAfter)?.name ?? input.openingName) : undefined,
     }),
   );
   return review;
@@ -372,9 +377,12 @@ export function buildReview(
   book: OpeningBook,
   memo: ReviewMemo = new Map(),
   perspective?: 'w' | 'b',
+  /** How many plies the game's source says are opening theory (see {@link bookMoves}). */
+  knownBookPlies?: number,
 ): GameReview {
   const evals = positions.map((p) => (p ? evalPoint(p) : null));
-  const theory = bookMoves(plies, book);
+  const theory = bookMoves(plies, book, knownBookPlies);
+  const opening = detectOpening(plies, book);
   const moves: (MoveReview | null)[] = [];
 
   for (let i = 0; i < plies.length; i++) {
@@ -402,6 +410,7 @@ export function buildReview(
       prevMoverEval,
       isBook: theory[i],
       book,
+      openingName: opening?.name,
       perspective,
     });
     memo.set(i, { move, deps });
@@ -435,7 +444,7 @@ export function buildReview(
     moves,
     white: summary('w'),
     black: summary('b'),
-    opening: detectOpening(plies, book),
+    opening,
     keyMoments: keyMoments(moves),
     phases: complete ? phaseGrades(plies, moves, theory) : [],
     complete,

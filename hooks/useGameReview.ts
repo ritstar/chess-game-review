@@ -83,7 +83,7 @@ export function useGameReview(game: GameRecord | null, depth: AnalysisDepth, run
       const cached = runId === 0 ? await cacheGet<PositionAnalysis[]>(key) : null;
       if (controller.signal.aborted) return;
       if (cached && cached.length === fens.length) {
-        const review = buildReview(plies, cached, book, undefined, game.perspective);
+        const review = buildReview(plies, cached, book, undefined, game.perspective, game.bookPlies);
         setState({ review, status: 'done', progress: 1, error: null, fromCache: true, stage: 'deep' });
         void saveSummary(game.id, review);
         return;
@@ -98,7 +98,7 @@ export function useGameReview(game: GameRecord | null, depth: AnalysisDepth, run
         const { positions, progress, stage } = latest;
         setState((s) => ({
           ...s,
-          review: buildReview(plies, positions, book, memo, game.perspective),
+          review: buildReview(plies, positions, book, memo, game.perspective, game.bookPlies),
           progress,
           stage,
         }));
@@ -112,6 +112,7 @@ export function useGameReview(game: GameRecord | null, depth: AnalysisDepth, run
         preset: DEPTH_PRESETS[depth],
         book,
         perspective: game.perspective,
+        bookPlies: game.bookPlies,
         signal: controller.signal,
         onProgress: (positions, progress, stage) => {
           latest = { positions, progress, stage };
@@ -123,7 +124,7 @@ export function useGameReview(game: GameRecord | null, depth: AnalysisDepth, run
       });
       if (controller.signal.aborted) return;
 
-      const review = buildReview(plies, final, book, memo, game.perspective);
+      const review = buildReview(plies, final, book, memo, game.perspective, game.bookPlies);
       setState({ review, status: 'done', progress: 1, error: null, fromCache: false, stage: 'deep' });
       void cacheSet(key, final);
       void saveSummary(game.id, review);

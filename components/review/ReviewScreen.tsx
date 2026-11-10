@@ -128,7 +128,7 @@ function summaryMessage(
     };
   }
   const me = game.perspective;
-  const opening = review.opening?.name ?? game.opening;
+  const opening = (game.source === 'chesscom' && game.opening) || (review.opening?.name ?? game.opening);
   if (!me) {
     return {
       headline: `${game.white.name} vs ${game.black.name}`,
@@ -481,7 +481,8 @@ export function ReviewScreen({ game, settings, onSettingsChange, onBack }: Revie
   /* ── Coach ────────────────────────────────────────────────────────── */
 
   const analyzing = status === 'analyzing';
-  const opening = review?.opening?.name ?? game.opening;
+  // For Chess.com games, the name Chess.com itself gives the opening.
+  const opening = (game.source === 'chesscom' && game.opening) || (review?.opening?.name ?? game.opening);
 
   const coach: CoachMessage = (() => {
     if (mode === 'summary') return summaryMessage(game, review, analyzing, progress, stage);

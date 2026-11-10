@@ -16,6 +16,8 @@ export interface GameAnalysisInput {
   preset: AnalysisPreset;
   book: OpeningBook;
   perspective?: 'w' | 'b';
+  /** Plies the game's source counts as opening theory, when it says. */
+  bookPlies?: number;
   signal?: AbortSignal;
   /** Fires whenever a position's analysis lands. `progress` is 0–1 over both passes. */
   onProgress?: (positions: (PositionAnalysis | null)[], progress: number, stage: AnalysisStage) => void;
@@ -61,7 +63,7 @@ export async function analyseGame(input: GameAnalysisInput): Promise<PositionAna
   );
 
   // Pass 2.
-  const first = buildReview(plies, positions, input.book, undefined, input.perspective);
+  const first = buildReview(plies, positions, input.book, undefined, input.perspective, input.bookPlies);
   const targets = deepCheckTargets(first, preset.deepMoves);
   // Ratings come from the position before each move (best and played move
   // scored in one search), so that is the search worth deepening.

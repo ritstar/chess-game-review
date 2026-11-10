@@ -436,7 +436,7 @@ export function Board({
               <div className="celebrate-square absolute inset-0" style={{ background: `var(--color-${classification})` }} />
               <div className="celebrate-icon absolute inset-0 flex items-center justify-center">
                 <div className="aspect-square w-[68%]">
-                  <ClassificationIcon classification={classification} size={48} className="h-full! w-full! shadow-lg" />
+                  <ClassificationIcon classification={classification} size={48} className="h-full! w-full! drop-shadow-[0_3px_6px_rgba(0,0,0,.35)]" />
                 </div>
               </div>
               <span

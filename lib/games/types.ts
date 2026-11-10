@@ -26,6 +26,8 @@ export interface GameRecord {
   timeClass: TimeClass;
   rated?: boolean;
   opening?: string;
+  /** How many plies the source's own opening book covers (Chess.com games). */
+  bookPlies?: number;
   /** The perspective to review from, when the game was loaded via a username. */
   perspective?: Color;
 }
